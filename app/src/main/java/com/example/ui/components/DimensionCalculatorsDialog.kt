@@ -41,6 +41,7 @@ fun DimensionCalculatorsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.widthIn(max = 750.dp),
         title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -143,23 +144,11 @@ private fun FencePerimeterCalculator(
     var isDropdownExpanded by remember { mutableStateOf(false) }
 
     val fenceOptions = remember(activePrices) {
-        val fromCatalog = activePrices.filter { item ->
+        activePrices.filter { item ->
             item.isEnabled && item.category == ItemCategory.FENCES_GROUND.displayName && item.unit != "м²"
         }.map { item ->
             CatalogPresetOption(item.name, item.currentPrice, item.unit)
-        }
-        if (fromCatalog.isNotEmpty()) {
-            fromCatalog.distinctBy { it.name }
-        } else {
-            listOf(
-                CatalogPresetOption("Ограда металлическая профильная сварная", 45.0, "м.п."),
-                CatalogPresetOption("Ограда кованая с элементами декора", 110.0, "м.п."),
-                CatalogPresetOption("Ограда из нержавеющей стали", 140.0, "м.п."),
-                CatalogPresetOption("Бетонный армированный цоколь (ленточный)", 95.0, "м.п."),
-                CatalogPresetOption("Гранитный цоколь с шарами и столбиками", 280.0, "м.п."),
-                CatalogPresetOption("Комбинированная ограда (металл + гранит)", 180.0, "м.п.")
-            )
-        }
+        }.distinctBy { it.name }
     }
 
     val length = lengthStr.toDoubleOrNull() ?: 0.0
@@ -332,23 +321,11 @@ private fun AreaTileCalculator(
     var isDropdownExpanded by remember { mutableStateOf(false) }
 
     val tileOptions = remember(activePrices) {
-        val fromCatalog = activePrices.filter { item ->
+        activePrices.filter { item ->
             item.isEnabled && (item.category == ItemCategory.FENCES_GROUND.displayName || item.name.contains("плитк", ignoreCase = true) || item.name.contains("газон", ignoreCase = true) || item.name.contains("щебень", ignoreCase = true)) && item.unit == "м²"
         }.map { item ->
             CatalogPresetOption(item.name, item.currentPrice, item.unit)
-        }
-        if (fromCatalog.isNotEmpty()) {
-            fromCatalog.distinctBy { it.name }
-        } else {
-            listOf(
-                CatalogPresetOption("Укладка тротуарной плитки с бордюром «под ключ»", 85.0, "м²"),
-                CatalogPresetOption("Облицовка гранитной плиткой (30×30 или 60×30)", 190.0, "м²"),
-                CatalogPresetOption("Облицовка керамогранитной плиткой", 120.0, "м²"),
-                CatalogPresetOption("Отсыпка декоративным щебнем / мраморной крошкой", 35.0, "м²"),
-                CatalogPresetOption("Укладка искусственного газона", 48.0, "м²"),
-                CatalogPresetOption("Заливка бетонного основания (стяжка)", 65.0, "м²")
-            )
-        }
+        }.distinctBy { it.name }
     }
 
     val length = lengthStr.toDoubleOrNull() ?: 0.0

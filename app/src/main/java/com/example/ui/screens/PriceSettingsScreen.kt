@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,14 +17,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.data.*
+import com.example.data.cloud.SyncState
 import com.example.ui.RitualViewModel
 import com.example.ui.components.AddEditPriceDialog
+import com.example.ui.components.AuthDialog
+import com.example.util.FontHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,13 +42,20 @@ fun PriceSettingsScreen(
     selectedCategory: String?
 ) {
     var mainTab by remember { mutableIntStateOf(0) }
-    val tabTitles = listOf("Каталог", "Камни", "Замеры и гравировка")
+    val tabTitles = listOf("Каталог", "Камни", "Замеры", "Шрифты", "Рисунки", "Фото и Рамки", "Вазы")
 
     val stoneMaterials by viewModel.stoneMaterials.collectAsState()
     val sizePresets by viewModel.sizePresets.collectAsState()
     val constructorPrices by viewModel.constructorServicePrices.collectAsState()
+    val engravingFonts by viewModel.engravingFonts.collectAsState()
+    val engravingDrawings by viewModel.engravingDrawings.collectAsState()
+    val photoSizes by viewModel.photoSizes.collectAsState()
+    val photoFrames by viewModel.photoFrames.collectAsState()
+    val vases by viewModel.vases.collectAsState()
     val usdRate by viewModel.usdExchangeRate.collectAsState()
-    var usdRateInput by remember(usdRate) { mutableStateOf(usdRate.toString()) }
+    val eurRate by viewModel.eurExchangeRate.collectAsState()
+
+
 
     Column(
         modifier = Modifier
@@ -49,65 +64,10 @@ fun PriceSettingsScreen(
     ) {
         Spacer(modifier = Modifier.height(8.dp))
 
-        // USD Exchange Rate Card
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(Icons.Default.AttachMoney, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Курс доллара (USD / BYN)",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Курс Нацбанка РБ (авто-загрузка). Можно отредактировать вручную.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                FilledTonalIconButton(
-                    onClick = { viewModel.refreshNbrbUsdRate(showUserFeedback = true) },
-                    modifier = Modifier.size(38.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = "Обновить курс с сайта Нацбанка РБ",
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                OutlinedTextField(
-                    value = usdRateInput,
-                    onValueChange = {
-                        usdRateInput = it
-                        it.toDoubleOrNull()?.let { rate ->
-                            if (rate > 0) viewModel.updateUsdExchangeRate(rate)
-                        }
-                    },
-                    label = { Text("Курс USD") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.width(105.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
         // Top Navigation Tabs
-        PrimaryTabRow(
+        ScrollableTabRow(
             selectedTabIndex = mainTab,
+            edgePadding = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
             tabTitles.forEachIndexed { index, title ->
@@ -144,9 +104,33 @@ fun PriceSettingsScreen(
                 viewModel = viewModel,
                 allPrices = allPrices,
                 servicePrices = constructorPrices,
+                usdRate = usdRate,
+                eurRate = eurRate
+            )
+            3 -> FontsPricingTab(
+                viewModel = viewModel,
+                fonts = engravingFonts,
+                usdRate = usdRate
+            )
+            4 -> DrawingsPricingTab(
+                viewModel = viewModel,
+                drawings = engravingDrawings,
+                usdRate = usdRate
+            )
+            5 -> PhotoSizesAndFramesTab(
+                viewModel = viewModel,
+                photoSizes = photoSizes,
+                photoFrames = photoFrames,
+                usdRate = usdRate
+            )
+            6 -> VasesPricingTab(
+                viewModel = viewModel,
+                vases = vases,
                 usdRate = usdRate
             )
         }
+
+
     }
 }
 
@@ -166,7 +150,6 @@ private fun GeneralCatalogTab(
     var showAddDialog by remember { mutableStateOf(false) }
     var itemToEdit by remember { mutableStateOf<PriceItem?>(null) }
     var itemToDelete by remember { mutableStateOf<PriceItem?>(null) }
-    var showResetConfirmation by remember { mutableStateOf(false) }
 
     // Quick inline price editor
     var quickEditItem by remember { mutableStateOf<PriceItem?>(null) }
@@ -186,7 +169,7 @@ private fun GeneralCatalogTab(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Search bar & Reset button
+        // Search bar
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -205,15 +188,8 @@ private fun GeneralCatalogTab(
                     }
                 },
                 singleLine = true,
-                modifier = Modifier.weight(1f).testTag("price_search_input")
+                modifier = Modifier.fillMaxWidth().testTag("price_search_input")
             )
-
-            FilledTonalIconButton(
-                onClick = { showResetConfirmation = true },
-                modifier = Modifier.testTag("reset_prices_btn")
-            ) {
-                Icon(Icons.Default.RestartAlt, contentDescription = "Сброс к базовым ценам")
-            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -253,17 +229,19 @@ private fun GeneralCatalogTab(
             Text(
                 text = "Найдено позиций: ${filteredPrices.size}",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f).padding(end = 8.dp)
             )
 
             Button(
                 onClick = { showAddDialog = true },
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                 modifier = Modifier.testTag("add_new_price_btn")
             ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Добавить позицию", style = MaterialTheme.typography.labelMedium)
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Добавить", maxLines = 1, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -441,29 +419,6 @@ private fun GeneralCatalogTab(
             },
             dismissButton = {
                 TextButton(onClick = { itemToDelete = null }) {
-                    Text("Отмена")
-                }
-            }
-        )
-    }
-
-    if (showResetConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showResetConfirmation = false },
-            title = { Text("Сброс прайс-листа") },
-            text = { Text("Сбросить все расценки каталога к базовым заводским значениям в BYN?") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.resetPricesToDefault()
-                        showResetConfirmation = false
-                    }
-                ) {
-                    Text("Сбросить")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showResetConfirmation = false }) {
                     Text("Отмена")
                 }
             }
@@ -654,7 +609,6 @@ private fun StoneMaterialsTab(
     var showAddDialog by remember { mutableStateOf(false) }
     var materialToEdit by remember { mutableStateOf<StoneMaterialItem?>(null) }
     var materialToDelete by remember { mutableStateOf<StoneMaterialItem?>(null) }
-    var showResetConfirmation by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -675,22 +629,15 @@ private fun StoneMaterialsTab(
                 )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                FilledTonalIconButton(
-                    onClick = { showResetConfirmation = true },
-                    modifier = Modifier.size(38.dp)
-                ) {
-                    Icon(Icons.Default.RestartAlt, contentDescription = "Сброс к базовым материалам")
-                }
-                Button(
-                    onClick = { showAddDialog = true },
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                    modifier = Modifier.testTag("add_stone_material_btn")
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Камень", style = MaterialTheme.typography.labelMedium)
-                }
+            Button(
+                onClick = { showAddDialog = true },
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                modifier = Modifier.testTag("add_stone_material_btn")
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Добавить", maxLines = 1, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -720,20 +667,15 @@ private fun StoneMaterialsTab(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Добавьте новые виды гранита и мрамора или восстановите стандартный набор",
+                        text = "Добавьте новые виды гранита и мрамора в конструктор",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { showAddDialog = true }) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Создать породу камня")
-                        }
-                        OutlinedButton(onClick = { viewModel.resetStoneMaterials() }) {
-                            Text("Восстановить базовые")
-                        }
+                    Button(onClick = { showAddDialog = true }) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Создать породу камня")
                     }
                 }
             }
@@ -798,29 +740,6 @@ private fun StoneMaterialsTab(
             },
             dismissButton = {
                 TextButton(onClick = { materialToDelete = null }) {
-                    Text("Отмена")
-                }
-            }
-        )
-    }
-
-    if (showResetConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showResetConfirmation = false },
-            title = { Text("Сброс материалов") },
-            text = { Text("Восстановить заводской список пород гранита и мрамора?") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.resetStoneMaterials()
-                        showResetConfirmation = false
-                    }
-                ) {
-                    Text("Сбросить")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showResetConfirmation = false }) {
                     Text("Отмена")
                 }
             }
@@ -1219,14 +1138,18 @@ private fun AddEditStoneMaterialDialog(
 // =========================================================================
 // TAB 3: MEASUREMENT & FIELD RATES TAB (ЗАМЕРЫ)
 // =========================================================================
+// TAB 3: MEASUREMENT & ENGRAVING PRICING TAB
+// =========================================================================
 
 @Composable
 private fun MeasurementPricingTab(
     viewModel: RitualViewModel,
     allPrices: List<PriceItem>,
     servicePrices: List<ConstructorServicePriceItem>,
-    usdRate: Double
+    usdRate: Double,
+    eurRate: Double
 ) {
+    val context = LocalContext.current
     val fenceItems = remember(allPrices) {
         allPrices.filter { item ->
             item.category == ItemCategory.FENCES_GROUND.displayName && item.unit != "м²"
@@ -1254,7 +1177,7 @@ private fun MeasurementPricingTab(
     var editingTariffPrice by remember { mutableDoubleStateOf(0.0) }
     var editingTariffDesc by remember { mutableStateOf("") }
 
-    var showResetDialog by remember { mutableStateOf(false) }
+    var isRefreshingRates by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -1286,10 +1209,70 @@ private fun MeasurementPricingTab(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Типы оград, плитки, доставки и гравировка за 1 знак. Создавайте, редактируйте и удаляйте позиции — они синхронизируются с калькулятором замеров.",
+                        text = "Типы оград, плитки, доставки, сусальное золото (EUR) и курсы валют НБРБ.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            }
+        }
+
+        // Section: Currency Rates (USD & EUR)
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.35f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.CurrencyExchange, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+                        Text("Курсы валют (НБРБ и конвертация)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                    }
+
+                    FilledTonalButton(
+                        onClick = {
+                            isRefreshingRates = true
+                            viewModel.refreshNbrbRates(showUserFeedback = true)
+                            isRefreshingRates = false
+                        },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("НБРБ", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text("Курс USD ($)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("1 $ = ${"%.4f".format(java.util.Locale.US, usdRate)} BYN", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text("Курс EUR (€)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("1 € = ${"%.4f".format(java.util.Locale.US, eurRate)} BYN", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
                 }
             }
         }
@@ -1320,12 +1303,13 @@ private fun MeasurementPricingTab(
             onDeleteItem = { itemToDelete = it }
         )
 
-        // Section 3: Engraving Letters & Epitaphs
+        // Section 3: Engraving Letters & Epitaphs (including Gold leaf)
         MeasurementSectionCard(
-            title = "3. Гравировка надписей (Конструктор памятника)",
+            title = "3. Гравировка надписей и сусальное золото",
             icon = Icons.Default.EditNote,
-            description = "Тарифы за 1 знак. Связаны с расчётом ФИО, сусального золота и эпитафии в Конструкторе памятника",
+            description = "Тарифы гравировки. Сусальное золото: большие 8 €, маленькие и цифры 7 € (автоматический пересчёт в BYN по курсу EUR).",
             usdRate = usdRate,
+            eurRate = eurRate,
             items = listOf(
                 MeasurementTariffDisplay(
                     key = "letter_standard",
@@ -1335,11 +1319,25 @@ private fun MeasurementPricingTab(
                     description = "Цена за 1 знак букв/цифр ФИО в Конструкторе памятника и Замерах"
                 ),
                 MeasurementTariffDisplay(
-                    key = "letter_gold",
-                    title = "Гравировка 1 знака с сусальным золотом",
+                    key = "letter_painted",
+                    title = "Покраска букв (1 знак / буква)",
                     unit = "знак",
-                    price = pricesMap["letter_gold"] ?: 5.50,
-                    description = "Цена за 1 знак в Конструкторе памятника при выборе тумблера «Сусальное золото»"
+                    price = pricesMap["letter_painted"] ?: 10.00,
+                    description = "Стоимость покраски 1 знака (буквы/цифры) в Конструкторе памятника"
+                ),
+                MeasurementTariffDisplay(
+                    key = "letter_gold_large",
+                    title = "Сусальное золото: Заглавные (большие) буквы",
+                    unit = "EUR",
+                    price = pricesMap["letter_gold_large"] ?: 8.00,
+                    description = "Тариф в евро за 1 заглавную букву (8 € ≈ ${"%.2f".format(java.util.Locale.US, (pricesMap["letter_gold_large"] ?: 8.00) * eurRate)} BYN)"
+                ),
+                MeasurementTariffDisplay(
+                    key = "letter_gold_small",
+                    title = "Сусальное золото: Строчные буквы и цифры",
+                    unit = "EUR",
+                    price = pricesMap["letter_gold_small"] ?: 7.00,
+                    description = "Тариф в евро за маленькие буквы и цифры (7 € ≈ ${"%.2f".format(java.util.Locale.US, (pricesMap["letter_gold_small"] ?: 7.00) * eurRate)} BYN)"
                 ),
                 MeasurementTariffDisplay(
                     key = "letter_epitaph",
@@ -1364,6 +1362,7 @@ private fun MeasurementPricingTab(
             icon = Icons.Default.LocalShipping,
             description = "Формула: Базовый тариф + (Доп. км × Тариф за км)",
             usdRate = usdRate,
+            eurRate = eurRate,
             items = listOf(
                 MeasurementTariffDisplay(
                     key = "measure_delivery_base_price",
@@ -1396,18 +1395,37 @@ private fun MeasurementPricingTab(
             }
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Reset Button
-        OutlinedButton(
-            onClick = { showResetDialog = true },
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Сбросить расценки замеров к заводским")
-        }
+        // Section 5: Installation and Demontazh
+        MeasurementSectionCard(
+            title = "5. Монтаж и демонтаж (установка / работы)",
+            icon = Icons.Default.Build,
+            description = "Тарифы на установку комплекта памятника и демонтаж старых надгробий/крестов",
+            usdRate = usdRate,
+            eurRate = eurRate,
+            items = listOf(
+                MeasurementTariffDisplay(
+                    key = "installation_base_price",
+                    title = "Монтаж (установка) памятника",
+                    unit = "компл / работа",
+                    price = pricesMap["installation_base_price"] ?: 500.0,
+                    description = "Базовая стоимость установки комплекта памятника на кладбище (BYN)"
+                ),
+                MeasurementTariffDisplay(
+                    key = "demontazh_base_price",
+                    title = "Демонтаж старого памятника / надгробия",
+                    unit = "компл / работа",
+                    price = pricesMap["demontazh_base_price"] ?: 150.0,
+                    description = "Стоимость демонтажа старого надгробия, креста или ограды (BYN)"
+                )
+            ),
+            onEdit = { key, title, unit, price, desc ->
+                editingTariffKey = key
+                editingTariffTitle = title
+                editingTariffUnit = unit
+                editingTariffPrice = price
+                editingTariffDesc = desc
+            }
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
     }
@@ -1506,42 +1524,11 @@ private fun MeasurementPricingTab(
             initialPrice = editingTariffPrice,
             description = editingTariffDesc,
             usdRate = usdRate,
+            eurRate = eurRate,
             onDismiss = { editingTariffKey = null },
             onSave = { newPrice ->
                 viewModel.updateConstructorPriceByKey(key, newPrice)
                 editingTariffKey = null
-            }
-        )
-    }
-
-    // Reset Confirmation Dialog
-    if (showResetDialog) {
-        AlertDialog(
-            onDismissRequest = { showResetDialog = false },
-            title = { Text("Сбросить расценки замеров?") },
-            text = { Text("Все тарифы оград, плитки, гравировки знаков и доставки будут возвращены к исходным значениям.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.updateConstructorPriceByKey("measure_fence_price_pm", 45.0)
-                        viewModel.updateConstructorPriceByKey("measure_tile_price_sqm", 85.0)
-                        viewModel.updateConstructorPriceByKey("letter_standard", 1.60)
-                        viewModel.updateConstructorPriceByKey("letter_gold", 5.50)
-                        viewModel.updateConstructorPriceByKey("letter_epitaph", 1.50)
-                        viewModel.updateConstructorPriceByKey("measure_delivery_base_price", 60.0)
-                        viewModel.updateConstructorPriceByKey("measure_delivery_base_km", 15.0)
-                        viewModel.updateConstructorPriceByKey("measure_delivery_km_price", 1.50)
-                        showResetDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Сбросить")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showResetDialog = false }) {
-                    Text("Отмена")
-                }
             }
         )
     }
@@ -1597,12 +1584,13 @@ private fun CatalogItemsSectionCard(
 
                 Button(
                     onClick = onAddClick,
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                    modifier = Modifier.height(34.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.height(36.dp)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Добавить", style = MaterialTheme.typography.labelMedium)
+                    Text("Добавить", style = MaterialTheme.typography.labelMedium, maxLines = 1, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -1639,6 +1627,7 @@ private fun MeasurementSectionCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     description: String,
     usdRate: Double,
+    eurRate: Double = 3.55,
     items: List<MeasurementTariffDisplay>,
     onEdit: (key: String, title: String, unit: String, price: Double, desc: String) -> Unit
 ) {
@@ -1697,10 +1686,10 @@ private fun MeasurementSectionCard(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Column(horizontalAlignment = Alignment.End) {
-                                    val formattedPrice = if (item.unit == "км") {
-                                        "${item.price.toInt()} км"
-                                    } else {
-                                        "${PriceFormatter.formatRub(item.price)} / ${item.unit}"
+                                    val formattedPrice = when (item.unit) {
+                                        "км" -> "${item.price.toInt()} км"
+                                        "EUR" -> "${item.price.toInt()} € / знак"
+                                        else -> "${PriceFormatter.formatRub(item.price)} / ${item.unit}"
                                     }
                                     Text(
                                         text = formattedPrice,
@@ -1708,7 +1697,13 @@ private fun MeasurementSectionCard(
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
-                                    if (item.unit != "км" && usdRate > 0) {
+                                    if (item.unit == "EUR" && eurRate > 0) {
+                                        Text(
+                                            text = "(≈ ${"%.2f".format(java.util.Locale.US, item.price * eurRate)} BYN)",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                        )
+                                    } else if (item.unit != "км" && item.unit != "EUR" && usdRate > 0) {
                                         Text(
                                             text = "(${"%.2f".format(java.util.Locale.US, item.price / usdRate)} $)",
                                             style = MaterialTheme.typography.labelSmall,
@@ -1738,20 +1733,22 @@ private fun AddEditMeasurementTariffDialog(
     initialPrice: Double,
     description: String,
     usdRate: Double,
+    eurRate: Double = 3.55,
     onDismiss: () -> Unit,
     onSave: (Double) -> Unit
 ) {
-    var priceBynStr by remember {
+    val isEur = unit == "EUR"
+    var priceStr by remember {
         mutableStateOf(
             if (initialPrice % 1.0 == 0.0) initialPrice.toLong().toString()
             else "%.2f".format(java.util.Locale.US, initialPrice)
         )
     }
-    var priceUsdStr by remember {
-        val usd = if (usdRate > 0) initialPrice / usdRate else 0.0
+    var convertedBynStr by remember {
+        val byn = if (isEur) initialPrice * eurRate else initialPrice
         mutableStateOf(
-            if (usd % 1.0 == 0.0) usd.toLong().toString()
-            else "%.2f".format(java.util.Locale.US, usd)
+            if (byn % 1.0 == 0.0) byn.toLong().toString()
+            else "%.2f".format(java.util.Locale.US, byn)
         )
     }
 
@@ -1782,12 +1779,37 @@ private fun AddEditMeasurementTariffDialog(
 
                 if (unit == "км") {
                     OutlinedTextField(
-                        value = priceBynStr,
-                        onValueChange = { priceBynStr = it },
+                        value = priceStr,
+                        onValueChange = { priceStr = it },
                         label = { Text("Значение ($unit)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
+                    )
+                } else if (isEur) {
+                    OutlinedTextField(
+                        value = priceStr,
+                        onValueChange = { input ->
+                            priceStr = input
+                            val eur = input.toDoubleOrNull()
+                            if (eur != null && eurRate > 0) {
+                                val byn = eur * eurRate
+                                convertedBynStr = if (byn % 1.0 == 0.0) byn.toLong().toString() else "%.2f".format(java.util.Locale.US, byn)
+                            } else if (input.isBlank()) {
+                                convertedBynStr = ""
+                            }
+                        },
+                        label = { Text("Тариф в EUR (€) за знак *") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Text(
+                        text = "По курсу НБРБ (1 € = ${"%.2f".format(java.util.Locale.US, eurRate)} BYN): ≈ $convertedBynStr BYN",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
                     )
                 } else {
                     Row(
@@ -1795,15 +1817,15 @@ private fun AddEditMeasurementTariffDialog(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OutlinedTextField(
-                            value = priceBynStr,
+                            value = priceStr,
                             onValueChange = { input ->
-                                priceBynStr = input
+                                priceStr = input
                                 val byn = input.toDoubleOrNull()
                                 if (byn != null && usdRate > 0) {
                                     val usd = byn / usdRate
-                                    priceUsdStr = if (usd % 1.0 == 0.0) usd.toLong().toString() else "%.2f".format(java.util.Locale.US, usd)
+                                    convertedBynStr = if (usd % 1.0 == 0.0) usd.toLong().toString() else "%.2f".format(java.util.Locale.US, usd)
                                 } else if (input.isBlank()) {
-                                    priceUsdStr = ""
+                                    convertedBynStr = ""
                                 }
                             },
                             label = { Text("Цена BYN / $unit *") },
@@ -1813,15 +1835,15 @@ private fun AddEditMeasurementTariffDialog(
                         )
 
                         OutlinedTextField(
-                            value = priceUsdStr,
+                            value = convertedBynStr,
                             onValueChange = { input ->
-                                priceUsdStr = input
+                                convertedBynStr = input
                                 val usd = input.toDoubleOrNull()
                                 if (usd != null && usdRate > 0) {
                                     val byn = usd * usdRate
-                                    priceBynStr = if (byn % 1.0 == 0.0) byn.toLong().toString() else "%.2f".format(java.util.Locale.US, byn)
+                                    priceStr = if (byn % 1.0 == 0.0) byn.toLong().toString() else "%.2f".format(java.util.Locale.US, byn)
                                 } else if (input.isBlank()) {
-                                    priceBynStr = ""
+                                    priceStr = ""
                                 }
                             },
                             label = { Text("Цена $ USD") },
@@ -1842,12 +1864,12 @@ private fun AddEditMeasurementTariffDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val p = priceBynStr.toDoubleOrNull()
+                    val p = priceStr.toDoubleOrNull()
                     if (p != null && p >= 0) {
                         onSave(p)
                     }
                 },
-                enabled = priceBynStr.toDoubleOrNull() != null
+                enabled = priceStr.toDoubleOrNull() != null
             ) {
                 Text("Сохранить")
             }
@@ -1859,4 +1881,1810 @@ private fun AddEditMeasurementTariffDialog(
         }
     )
 }
+
+@Composable
+fun FontsPricingTab(
+    viewModel: RitualViewModel,
+    fonts: List<EngravingFontItem>,
+    usdRate: Double
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    var fontToEdit by remember { mutableStateOf<EngravingFontItem?>(null) }
+    var showAddDialog by remember { mutableStateOf(false) }
+    var fontToDelete by remember { mutableStateOf<EngravingFontItem?>(null) }
+
+    val filteredFonts = remember(fonts, searchQuery) {
+        if (searchQuery.isBlank()) fonts
+        else {
+            val q = searchQuery.trim().lowercase()
+            fonts.filter {
+                it.name.lowercase().contains(q) ||
+                it.description.lowercase().contains(q) ||
+                it.styleKey.lowercase().contains(q)
+            }
+        }
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(bottom = 80.dp)
+    ) {
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.FormatPaint,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Шрифты для гравировки надписей",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "В конструкторе памятников доступен выбор любого из активных шрифтов. На данный момент использование шрифтов бесплатное (0.00 BYN). Вы можете настраивать список, стили и примеры написания.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Поиск шрифта...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Очистить")
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.weight(1f)
+                )
+
+                Button(
+                    onClick = { showAddDialog = true },
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Добавить")
+                }
+            }
+        }
+
+        if (filteredFonts.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.FontDownload,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = if (searchQuery.isBlank()) "Список шрифтов пуст" else "Шрифты не найдены",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        } else {
+            items(filteredFonts, key = { it.id }) { fontItem ->
+                FontItemCard(
+                    font = fontItem,
+                    onToggleEnabled = { viewModel.toggleFontEnabled(fontItem) },
+                    onEdit = { fontToEdit = fontItem },
+                    onDelete = { fontToDelete = fontItem }
+                )
+            }
+        }
+
+    }
+
+    if (showAddDialog) {
+        AddEditFontDialog(
+            font = null,
+            onDismiss = { showAddDialog = false },
+            onSave = { newFont ->
+                viewModel.saveFont(newFont)
+                showAddDialog = false
+            }
+        )
+    }
+
+    fontToEdit?.let { font ->
+        AddEditFontDialog(
+            font = font,
+            onDismiss = { fontToEdit = null },
+            onSave = { updated ->
+                viewModel.saveFont(updated)
+                fontToEdit = null
+            }
+        )
+    }
+
+    fontToDelete?.let { font ->
+        AlertDialog(
+            onDismissRequest = { fontToDelete = null },
+            title = { Text("Удалить шрифт?") },
+            text = { Text("Вы уверены, что хотите удалить шрифт «${font.name}»?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteFont(font)
+                        fontToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Удалить")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { fontToDelete = null }) {
+                    Text("Отмена")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun FontItemCard(
+    font: EngravingFontItem,
+    onToggleEnabled: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (font.isEnabled) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = font.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (font.isEnabled) MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = FontHelper.getStyleDisplayName(font.styleKey),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        color = if (font.price <= 0.0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = if (font.price <= 0.0) "Бесплатно" else PriceFormatter.formatRub(font.price),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (font.price <= 0.0) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Switch(
+                        checked = font.isEnabled,
+                        onCheckedChange = { onToggleEnabled() }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Granite-like preview block
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF1E2124), shape = RoundedCornerShape(8.dp))
+                    .padding(12.dp)
+            ) {
+                Column {
+                    Text(
+                        text = "ОБРАЗЕЦ НАПИСАНИЯ:",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF9E9E9E),
+                        fontSize = 9.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = font.sampleText.ifBlank { "Иванов Иван Иванович\n1950 — 2024" },
+                        fontFamily = FontHelper.getFontFamily(font.styleKey),
+                        fontWeight = FontHelper.getFontWeight(font.styleKey),
+                        fontStyle = FontHelper.getFontStyle(font.styleKey),
+                        fontSize = 16.sp,
+                        lineHeight = 22.sp,
+                        color = Color(0xFFE8ECEF),
+                        textAlign = TextAlign.Start
+                    )
+                }
+            }
+
+            if (font.description.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = font.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.Edit, contentDescription = "Редактировать", tint = MaterialTheme.colorScheme.primary)
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddEditFontDialog(
+    font: EngravingFontItem?,
+    onDismiss: () -> Unit,
+    onSave: (EngravingFontItem) -> Unit
+) {
+    var name by remember { mutableStateOf(font?.name ?: "") }
+    var styleKey by remember { mutableStateOf(font?.styleKey ?: "SERIF") }
+    var sampleText by remember { mutableStateOf(font?.sampleText ?: "Иванов Иван Иванович\n1950 — 2024") }
+    var description by remember { mutableStateOf(font?.description ?: "") }
+    var priceStr by remember { mutableStateOf(if (font != null && font.price > 0) font.price.toString() else "0") }
+    var isStyleMenuExpanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(if (font == null) "Добавить шрифт" else "Редактировать шрифт")
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Название шрифта *") },
+                    placeholder = { Text("например: Академический") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Style Selector Dropdown
+                ExposedDropdownMenuBox(
+                    expanded = isStyleMenuExpanded,
+                    onExpandedChange = { isStyleMenuExpanded = !isStyleMenuExpanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = FontHelper.getStyleDisplayName(styleKey),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Гарнитура / Стиль начертания") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isStyleMenuExpanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = isStyleMenuExpanded,
+                        onDismissRequest = { isStyleMenuExpanded = false }
+                    ) {
+                        FontHelper.availableStyles.forEach { (key, label) ->
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(text = label, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            text = "Пример: Иванов И.И.",
+                                            fontFamily = FontHelper.getFontFamily(key),
+                                            fontWeight = FontHelper.getFontWeight(key),
+                                            fontStyle = FontHelper.getFontStyle(key),
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    styleKey = key
+                                    isStyleMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Live Preview Block
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF1E2124), shape = RoundedCornerShape(8.dp))
+                        .padding(10.dp)
+                ) {
+                    Text(
+                        text = "ПРЕДПРОСМОТР ШРИФТА:",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF9E9E9E),
+                        fontSize = 9.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = sampleText.ifBlank { "Пример текста гравировки" },
+                        fontFamily = FontHelper.getFontFamily(styleKey),
+                        fontWeight = FontHelper.getFontWeight(styleKey),
+                        fontStyle = FontHelper.getFontStyle(styleKey),
+                        fontSize = 15.sp,
+                        lineHeight = 20.sp,
+                        color = Color(0xFFE8ECEF)
+                    )
+                }
+
+                OutlinedTextField(
+                    value = sampleText,
+                    onValueChange = { sampleText = it },
+                    label = { Text("Образец текста") },
+                    maxLines = 3,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = priceStr,
+                    onValueChange = { priceStr = it },
+                    label = { Text("Стоимость (BYN, 0 = бесплатно)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Описание (опционально)") },
+                    maxLines = 2,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val p = priceStr.toDoubleOrNull() ?: 0.0
+                    val fontItem = (font ?: EngravingFontItem(name = name)).copy(
+                        name = name.trim(),
+                        styleKey = styleKey,
+                        price = p,
+                        sampleText = sampleText.trim(),
+                        description = description.trim()
+                    )
+                    onSave(fontItem)
+                },
+                enabled = name.isNotBlank()
+            ) {
+                Text("Сохранить")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена")
+            }
+        }
+    )
+}
+
+// =========================================================================
+// TAB 5: DRAWINGS & ORNAMENTS PRICING TAB (Крест, Цветок, Иконы, Ангелы, Свечи)
+// =========================================================================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DrawingsPricingTab(
+    viewModel: RitualViewModel,
+    drawings: List<EngravingDrawingItem>,
+    usdRate: Double
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedCategoryFilter by remember { mutableStateOf("Все") }
+    var showAddDialog by remember { mutableStateOf(false) }
+    var drawingToEdit by remember { mutableStateOf<EngravingDrawingItem?>(null) }
+    var drawingToDelete by remember { mutableStateOf<EngravingDrawingItem?>(null) }
+
+    val categories = remember(drawings) {
+        val baseCategories = listOf("Все", "Крест", "Цветок", "Иконы", "Ангелы", "Свечи")
+        val customCats = drawings.map { it.category }.distinct().filter { it !in baseCategories }
+        baseCategories + customCats
+    }
+
+    val filteredDrawings = remember(drawings, searchQuery, selectedCategoryFilter) {
+        drawings.filter { item ->
+            val matchesCat = selectedCategoryFilter == "Все" || item.category.equals(selectedCategoryFilter, ignoreCase = true)
+            val matchesQuery = searchQuery.isBlank() ||
+                    item.name.contains(searchQuery, ignoreCase = true) ||
+                    item.code.contains(searchQuery, ignoreCase = true) ||
+                    item.category.contains(searchQuery, ignoreCase = true) ||
+                    item.description.contains(searchQuery, ignoreCase = true)
+            matchesCat && matchesQuery
+        }
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(bottom = 80.dp)
+    ) {
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.tertiary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Рисунки и декор (Кресты, Цветы, Иконы, Ангелы, Свечи)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Настройте расценки и артикулы гравировки рисунков (например, Свечи «С-1», Крест «К-1», Цветок «Ц-1», Иконы «И-1», Ангелы «А-1»). Они автоматически будут доступны в конструкторе памятника с точным расчетом стоимости.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        // Category Filter Chips
+        item {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(categories) { cat ->
+                    FilterChip(
+                        selected = selectedCategoryFilter == cat,
+                        onClick = { selectedCategoryFilter = cat },
+                        label = { Text(cat) },
+                        leadingIcon = if (selectedCategoryFilter == cat) {
+                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        } else null
+                    )
+                }
+            }
+        }
+
+        // Search & Add Button
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Поиск рисунка по коду (С-1...) или названию...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Очистить")
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.weight(1f)
+                )
+
+                Button(
+                    onClick = { showAddDialog = true },
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Добавить")
+                }
+            }
+        }
+
+        if (filteredDrawings.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.Image,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = if (searchQuery.isBlank() && selectedCategoryFilter == "Все") "Список рисунков пуст" else "Рисунки не найдены",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        } else {
+            items(filteredDrawings, key = { it.id }) { drawingItem ->
+                DrawingItemCard(
+                    drawing = drawingItem,
+                    usdRate = usdRate,
+                    onToggleEnabled = { viewModel.toggleDrawingEnabled(drawingItem) },
+                    onEdit = { drawingToEdit = drawingItem },
+                    onDelete = { drawingToDelete = drawingItem }
+                )
+            }
+        }
+
+    }
+
+    if (showAddDialog) {
+        AddEditDrawingDialog(
+            drawing = null,
+            initialCategory = if (selectedCategoryFilter != "Все") selectedCategoryFilter else "Свечи",
+            onDismiss = { showAddDialog = false },
+            onSave = { newDrawing ->
+                viewModel.saveDrawing(newDrawing)
+                showAddDialog = false
+            }
+        )
+    }
+
+    drawingToEdit?.let { drawing ->
+        AddEditDrawingDialog(
+            drawing = drawing,
+            initialCategory = drawing.category,
+            onDismiss = { drawingToEdit = null },
+            onSave = { updated ->
+                viewModel.saveDrawing(updated)
+                drawingToEdit = null
+            }
+        )
+    }
+
+    drawingToDelete?.let { drawing ->
+        AlertDialog(
+            onDismissRequest = { drawingToDelete = null },
+            title = { Text("Удалить рисунок?") },
+            text = { Text("Вы уверены, что хотите удалить рисунок «${drawing.code} ${drawing.name}»?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteDrawing(drawing)
+                        drawingToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Удалить")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { drawingToDelete = null }) {
+                    Text("Отмена")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun DrawingItemCard(
+    drawing: EngravingDrawingItem,
+    usdRate: Double,
+    onToggleEnabled: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val categoryIcon = when (drawing.category.trim().lowercase()) {
+        "крест", "кресты" -> "☦️"
+        "цветок", "цветы" -> "🌹"
+        "иконы", "икона" -> "✨"
+        "ангелы", "ангел" -> "🕊️"
+        "свечи", "свеча" -> "🕯️"
+        else -> "🖼️"
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (drawing.isEnabled) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = drawing.code,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Column {
+                        Text(
+                            text = drawing.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (drawing.isEnabled) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "$categoryIcon ${drawing.category}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = PriceFormatter.formatRub(drawing.price),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            if (usdRate > 0) {
+                                val usd = drawing.price / usdRate
+                                Text(
+                                    text = "$${"%.1f".format(usd)}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Switch(
+                        checked = drawing.isEnabled,
+                        onCheckedChange = { onToggleEnabled() }
+                    )
+                }
+            }
+
+            if (drawing.description.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = drawing.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.Edit, contentDescription = "Редактировать", tint = MaterialTheme.colorScheme.primary)
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddEditDrawingDialog(
+    drawing: EngravingDrawingItem?,
+    initialCategory: String = "Свечи",
+    onDismiss: () -> Unit,
+    onSave: (EngravingDrawingItem) -> Unit
+) {
+    val predefinedCategories = listOf("Крест", "Цветок", "Иконы", "Ангелы", "Свечи")
+
+    var category by remember { mutableStateOf(drawing?.category ?: initialCategory) }
+    var isCustomCategory by remember { mutableStateOf(drawing != null && drawing.category !in predefinedCategories) }
+    var code by remember { mutableStateOf(drawing?.code ?: "") }
+    var name by remember { mutableStateOf(drawing?.name ?: "") }
+    var priceStr by remember { mutableStateOf(if (drawing != null) drawing.price.toString() else "35.0") }
+    var description by remember { mutableStateOf(drawing?.description ?: "") }
+    var isCategoryMenuExpanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(if (drawing == null) "Добавить рисунок гравировки" else "Редактировать рисунок")
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Category Selector
+                ExposedDropdownMenuBox(
+                    expanded = isCategoryMenuExpanded,
+                    onExpandedChange = { isCategoryMenuExpanded = !isCategoryMenuExpanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = category,
+                        onValueChange = {
+                            category = it
+                            isCustomCategory = true
+                        },
+                        label = { Text("Категория *") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCategoryMenuExpanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = isCategoryMenuExpanded,
+                        onDismissRequest = { isCategoryMenuExpanded = false }
+                    ) {
+                        predefinedCategories.forEach { cat ->
+                            DropdownMenuItem(
+                                text = { Text(cat) },
+                                onClick = {
+                                    category = cat
+                                    isCustomCategory = false
+                                    isCategoryMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = code,
+                    onValueChange = { code = it.uppercase() },
+                    label = { Text("Код / Артикул *") },
+                    placeholder = { Text("например: С-1, К-1, Ц-1, И-1, А-1") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Название рисунка *") },
+                    placeholder = { Text("например: Свеча с розой") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = priceStr,
+                    onValueChange = { priceStr = it },
+                    label = { Text("Стоимость гравировки (BYN) *") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Описание (опционально)") },
+                    maxLines = 2,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val p = priceStr.toDoubleOrNull() ?: 0.0
+                    val item = (drawing ?: EngravingDrawingItem(
+                        category = category.trim(),
+                        code = code.trim(),
+                        name = name.trim()
+                    )).copy(
+                        category = category.trim(),
+                        code = code.trim(),
+                        name = name.trim(),
+                        price = p,
+                        description = description.trim()
+                    )
+                    onSave(item)
+                },
+                enabled = category.isNotBlank() && code.isNotBlank() && name.isNotBlank()
+            ) {
+                Text("Сохранить")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена")
+            }
+        }
+    )
+}
+
+// =========================================================================
+// TAB 6: PHOTO SIZES AND FRAMES PRICING TAB
+// =========================================================================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PhotoSizesAndFramesTab(
+    viewModel: RitualViewModel,
+    photoSizes: List<PhotoSizeItem>,
+    photoFrames: List<PhotoFrameItem>,
+    usdRate: Double
+) {
+    var subTab by remember { mutableIntStateOf(0) } // 0: Размеры фото, 1: Рамки и врезка
+    var editingSize by remember { mutableStateOf<PhotoSizeItem?>(null) }
+    var isAddSizeDialogOpen by remember { mutableStateOf(false) }
+
+    var editingFrame by remember { mutableStateOf<PhotoFrameItem?>(null) }
+    var isAddFrameDialogOpen by remember { mutableStateOf(false) }
+
+    var itemToDeleteSize by remember { mutableStateOf<PhotoSizeItem?>(null) }
+    var itemToDeleteFrame by remember { mutableStateOf<PhotoFrameItem?>(null) }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Sub-tabs row
+        TabRow(
+            selectedTabIndex = subTab,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Tab(
+                selected = subTab == 0,
+                onClick = { subTab = 0 },
+                text = { Text("Размеры фото и портретов (${photoSizes.size})", fontWeight = if (subTab == 0) FontWeight.Bold else FontWeight.Normal) }
+            )
+            Tab(
+                selected = subTab == 1,
+                onClick = { subTab = 1 },
+                text = { Text("Рамки и врезка (${photoFrames.size})", fontWeight = if (subTab == 1) FontWeight.Bold else FontWeight.Normal) }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (subTab == 0) {
+            // Photo Sizes List
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                    Text(
+                        text = "Размеры и типы фото",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Керамогранит, триплекс, стекло, медальоны",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Button(
+                    onClick = { isAddSizeDialogOpen = true },
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                    modifier = Modifier.testTag("add_photo_size_btn")
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Добавить", maxLines = 1, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (photoSizes.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Размеры фото не найдены. Нажмите «Добавить» для создания позиции.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    val grouped = photoSizes.groupBy { it.category }
+                    grouped.forEach { (cat, items) ->
+                        item {
+                            Surface(
+                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = cat,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+
+                        items(items) { sizeItem ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (sizeItem.isEnabled) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = sizeItem.sizeName,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (sizeItem.isEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        if (sizeItem.description.isNotBlank()) {
+                                            Text(
+                                                text = sizeItem.description,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Text(
+                                            text = PriceFormatter.formatWithUsd(sizeItem.price, usdRate),
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+
+                                    }
+
+                                    Switch(
+                                        checked = sizeItem.isEnabled,
+                                        onCheckedChange = { viewModel.togglePhotoSizeEnabled(sizeItem) }
+                                    )
+
+                                    IconButton(onClick = { editingSize = sizeItem }) {
+                                        Icon(Icons.Default.Edit, contentDescription = "Редактировать", tint = MaterialTheme.colorScheme.primary)
+                                    }
+
+                                    IconButton(onClick = { itemToDeleteSize = sizeItem }) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // Photo Frames List
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                    Text(
+                        text = "Рамки и врезка",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Бронзовые и металлические рамки, фаски, врезка",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Button(
+                    onClick = { isAddFrameDialogOpen = true },
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                    modifier = Modifier.testTag("add_photo_frame_btn")
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Добавить", maxLines = 1, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (photoFrames.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Рамки не найдены. Нажмите «Добавить» для создания позиции.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(photoFrames) { frameItem ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (frameItem.isEnabled) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = frameItem.name,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (frameItem.isEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Surface(
+                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            shape = RoundedCornerShape(6.dp)
+                                        ) {
+                                            Text(
+                                                text = frameItem.materialType,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                    if (frameItem.description.isNotBlank()) {
+                                        Text(
+                                            text = frameItem.description,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Text(
+                                        text = PriceFormatter.formatWithUsd(frameItem.price, usdRate),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+
+                                }
+
+                                Switch(
+                                    checked = frameItem.isEnabled,
+                                    onCheckedChange = { viewModel.togglePhotoFrameEnabled(frameItem) }
+                                )
+
+                                IconButton(onClick = { editingFrame = frameItem }) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Редактировать", tint = MaterialTheme.colorScheme.primary)
+                                }
+
+                                IconButton(onClick = { itemToDeleteFrame = frameItem }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Dialog Add/Edit Photo Size
+    if (isAddSizeDialogOpen || editingSize != null) {
+        AddEditPhotoSizeDialog(
+            photoSize = editingSize,
+            onDismiss = {
+                isAddSizeDialogOpen = false
+                editingSize = null
+            },
+            onSave = { savedItem ->
+                viewModel.savePhotoSize(savedItem)
+                isAddSizeDialogOpen = false
+                editingSize = null
+            }
+        )
+    }
+
+    // Dialog Add/Edit Photo Frame
+    if (isAddFrameDialogOpen || editingFrame != null) {
+        AddEditPhotoFrameDialog(
+            frame = editingFrame,
+            onDismiss = {
+                isAddFrameDialogOpen = false
+                editingFrame = null
+            },
+            onSave = { savedItem ->
+                viewModel.savePhotoFrame(savedItem)
+                isAddFrameDialogOpen = false
+                editingFrame = null
+            }
+        )
+    }
+
+    // Confirmation Delete Size
+    itemToDeleteSize?.let { item ->
+        AlertDialog(
+            onDismissRequest = { itemToDeleteSize = null },
+            title = { Text("Удалить размер фото?") },
+            text = { Text("Вы уверены, что хотите удалить «${item.category} ${item.sizeName}»?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deletePhotoSize(item)
+                        itemToDeleteSize = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Удалить") }
+            },
+            dismissButton = {
+                TextButton(onClick = { itemToDeleteSize = null }) { Text("Отмена") }
+            }
+        )
+    }
+
+    // Confirmation Delete Frame
+    itemToDeleteFrame?.let { item ->
+        AlertDialog(
+            onDismissRequest = { itemToDeleteFrame = null },
+            title = { Text("Удалить рамку?") },
+            text = { Text("Вы уверены, что хотите удалить «${item.name}»?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deletePhotoFrame(item)
+                        itemToDeleteFrame = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Удалить") }
+            },
+            dismissButton = {
+                TextButton(onClick = { itemToDeleteFrame = null }) { Text("Отмена") }
+            }
+        )
+    }
+
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddEditPhotoSizeDialog(
+    photoSize: PhotoSizeItem?,
+    onDismiss: () -> Unit,
+    onSave: (PhotoSizeItem) -> Unit
+) {
+    val predefinedCategories = listOf("Фотокерамика", "Металлокерамика", "Фото на стекле", "Гравировка портрета")
+
+    var category by remember { mutableStateOf(photoSize?.category ?: "Фотокерамика") }
+    var sizeName by remember { mutableStateOf(photoSize?.sizeName ?: "") }
+    var priceStr by remember { mutableStateOf(photoSize?.price?.let { if (it > 0) it.toString() else "" } ?: "") }
+    var description by remember { mutableStateOf(photoSize?.description ?: "") }
+
+    var isCategoryMenuExpanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (photoSize == null) "Новый размер фото" else "Редактировать размер") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ExposedDropdownMenuBox(
+                    expanded = isCategoryMenuExpanded,
+                    onExpandedChange = { isCategoryMenuExpanded = !isCategoryMenuExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = category,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Категория фото *") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCategoryMenuExpanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = isCategoryMenuExpanded,
+                        onDismissRequest = { isCategoryMenuExpanded = false }
+                    ) {
+                        predefinedCategories.forEach { cat ->
+                            DropdownMenuItem(
+                                text = { Text(cat) },
+                                onClick = {
+                                    category = cat
+                                    isCategoryMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = sizeName,
+                    onValueChange = { sizeName = it },
+                    label = { Text("Размер (например: 13×18 см, 20×30 см) *") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = priceStr,
+                    onValueChange = { priceStr = it },
+                    label = { Text("Стоимость (BYN) *") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Описание (опционально)") },
+                    maxLines = 2,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val p = priceStr.toDoubleOrNull() ?: 0.0
+                    val item = (photoSize ?: PhotoSizeItem(
+                        category = category.trim(),
+                        sizeName = sizeName.trim()
+                    )).copy(
+                        category = category.trim(),
+                        sizeName = sizeName.trim(),
+                        price = p,
+                        description = description.trim()
+                    )
+                    onSave(item)
+                },
+                enabled = category.isNotBlank() && sizeName.isNotBlank()
+            ) { Text("Сохранить") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Отмена") }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddEditPhotoFrameDialog(
+    frame: PhotoFrameItem?,
+    onDismiss: () -> Unit,
+    onSave: (PhotoFrameItem) -> Unit
+) {
+    val predefinedTypes = listOf("Бронза", "Алюминий", "Гранит", "Врезка", "Без рамки")
+
+    var name by remember { mutableStateOf(frame?.name ?: "") }
+    var materialType by remember { mutableStateOf(frame?.materialType ?: "Бронза") }
+    var priceStr by remember { mutableStateOf(frame?.price?.let { if (it >= 0) it.toString() else "" } ?: "") }
+    var description by remember { mutableStateOf(frame?.description ?: "") }
+
+    var isTypeMenuExpanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (frame == null) "Новая рамка / оформление" else "Редактировать рамку") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Название (например: Бронза Caggiati) *") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                ExposedDropdownMenuBox(
+                    expanded = isTypeMenuExpanded,
+                    onExpandedChange = { isTypeMenuExpanded = !isTypeMenuExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = materialType,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Тип материала / исполнения *") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isTypeMenuExpanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = isTypeMenuExpanded,
+                        onDismissRequest = { isTypeMenuExpanded = false }
+                    ) {
+                        predefinedTypes.forEach { type ->
+                            DropdownMenuItem(
+                                text = { Text(type) },
+                                onClick = {
+                                    materialType = type
+                                    isTypeMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = priceStr,
+                    onValueChange = { priceStr = it },
+                    label = { Text("Стоимость (BYN) *") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Описание (опционально)") },
+                    maxLines = 2,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val p = priceStr.toDoubleOrNull() ?: 0.0
+                    val item = (frame ?: PhotoFrameItem(
+                        name = name.trim(),
+                        materialType = materialType.trim()
+                    )).copy(
+                        name = name.trim(),
+                        materialType = materialType.trim(),
+                        price = p,
+                        description = description.trim()
+                    )
+                    onSave(item)
+                },
+                enabled = name.isNotBlank() && materialType.isNotBlank()
+            ) { Text("Сохранить") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Отмена") }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun VasesPricingTab(
+    viewModel: RitualViewModel,
+    vases: List<VaseItem>,
+    usdRate: Double
+) {
+    var filterMaterial by remember { mutableStateOf("Все") }
+    var editingVase by remember { mutableStateOf<VaseItem?>(null) }
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    val materialsList = listOf("Все", "Гранит", "Кованый металл")
+    val filteredVases = vases.filter { item ->
+        if (filterMaterial == "Все") true
+        else item.materialType.contains(filterMaterial, ignoreCase = true)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                Text(
+                    text = "Вазы и аксессуары",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Гранитные, полимерные и кованые изделия",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Button(
+                onClick = { showAddDialog = true },
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                modifier = Modifier.testTag("add_vase_btn")
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Добавить", maxLines = 1, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        // Material Filter Chips
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            materialsList.forEach { mat ->
+                FilterChip(
+                    selected = filterMaterial == mat,
+                    onClick = { filterMaterial = mat },
+                    label = { Text(mat) }
+                )
+            }
+        }
+
+        if (filteredVases.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Вазы не найдены", style = MaterialTheme.typography.bodyMedium)
+            }
+        } else {
+            filteredVases.forEach { vase ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (vase.isEnabled) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = vase.name,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = vase.materialType,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            if (vase.sizeCm.isNotBlank()) {
+                                Text(
+                                    text = "Высота/размер: ${vase.sizeCm}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (vase.description.isNotBlank()) {
+                                Text(
+                                    text = vase.description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = PriceFormatter.formatWithUsd(vase.price, usdRate),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            IconButton(onClick = { editingVase = vase }) {
+                                Icon(Icons.Default.Edit, contentDescription = "Редактировать", modifier = Modifier.size(20.dp))
+                            }
+
+                            Switch(
+                                checked = vase.isEnabled,
+                                onCheckedChange = { viewModel.toggleVaseEnabled(vase) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+
+    if (showAddDialog || editingVase != null) {
+        AddEditVaseDialog(
+            vase = editingVase,
+            onDismiss = {
+                showAddDialog = false
+                editingVase = null
+            },
+            onSave = { vaseToSave ->
+                viewModel.saveVase(vaseToSave)
+                showAddDialog = false
+                editingVase = null
+            },
+            onDelete = { vaseToDelete ->
+                viewModel.deleteVase(vaseToDelete)
+                showAddDialog = false
+                editingVase = null
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddEditVaseDialog(
+    vase: VaseItem?,
+    onDismiss: () -> Unit,
+    onSave: (VaseItem) -> Unit,
+    onDelete: (VaseItem) -> Unit
+) {
+    var name by remember { mutableStateOf(vase?.name ?: "") }
+    var materialType by remember { mutableStateOf(vase?.materialType ?: "Гранит") }
+    var sizeCm by remember { mutableStateOf(vase?.sizeCm ?: "30 см") }
+    var priceStr by remember { mutableStateOf(vase?.price?.toString() ?: "120.0") }
+    var description by remember { mutableStateOf(vase?.description ?: "") }
+
+    var isTypeMenuExpanded by remember { mutableStateOf(false) }
+    val predefinedTypes = listOf("Гранит", "Кованый металл", "Бронза", "Полимер")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(if (vase == null) "Добавить вазу" else "Редактировать вазу")
+                if (vase != null) {
+                    IconButton(onClick = { onDelete(vase) }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Наименование вазы *") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                ExposedDropdownMenuBox(
+                    expanded = isTypeMenuExpanded,
+                    onExpandedChange = { isTypeMenuExpanded = !isTypeMenuExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = materialType,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Материал *") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isTypeMenuExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = isTypeMenuExpanded,
+                        onDismissRequest = { isTypeMenuExpanded = false }
+                    ) {
+                        predefinedTypes.forEach { type ->
+                            DropdownMenuItem(
+                                text = { Text(type) },
+                                onClick = {
+                                    materialType = type
+                                    isTypeMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = sizeCm,
+                    onValueChange = { sizeCm = it },
+                    label = { Text("Размер / Высота (например: 30 см)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = priceStr,
+                    onValueChange = { priceStr = it },
+                    label = { Text("Стоимость (BYN) *") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Описание (опционально)") },
+                    maxLines = 2,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val p = priceStr.toDoubleOrNull() ?: 0.0
+                    val item = (vase ?: VaseItem(
+                        name = name.trim(),
+                        materialType = materialType.trim(),
+                        sizeCm = sizeCm.trim()
+                    )).copy(
+                        name = name.trim(),
+                        materialType = materialType.trim(),
+                        sizeCm = sizeCm.trim(),
+                        price = p,
+                        description = description.trim()
+                    )
+                    onSave(item)
+                },
+                enabled = name.isNotBlank()
+            ) { Text("Сохранить") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Отмена") }
+        }
+    )
+}
+
+
+
+
 

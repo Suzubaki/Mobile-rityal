@@ -97,6 +97,28 @@ data class EstimateDocumentData(
             return rawText.trim()
         }
 
+        fun cleanEngravingCalculation(text: String): String {
+            if (text.isBlank()) return ""
+            var result = text
+            val hadGold = text.contains("золот", ignoreCase = true) || text.contains("сусальн", ignoreCase = true)
+
+            // Remove price calculation formulas like (10.00 BYN / знак), (8 € / 7 €), (1 € = 3.50 BYN), etc.
+            result = result.replace(Regex("""\([^\)]*(?:BYN|€|курс|\d+\s*×|\d+\.\d+)[^\)]*\)""", RegexOption.IGNORE_CASE), "")
+            result = result.replace(Regex("""\[[^\]]*(?:BYN|€|курс|\d+\s*×|\d+\.\d+)[^\]]*\]""", RegexOption.IGNORE_CASE), "")
+
+            // Remove lingering empty brackets
+            result = result.replace(Regex("""\(\s*\)"""), "")
+            result = result.replace(Regex("""\[\s*\]"""), "")
+            result = result.replace(Regex("""\s+"""), " ").trim()
+
+            // If gold was used but got stripped out from the title, preserve/add (Сусальное золото)
+            if (hadGold && !result.contains("золот", ignoreCase = true) && !result.contains("сусальн", ignoreCase = true)) {
+                result = if (result.isBlank()) "Сусальное золото" else "$result (Сусальное золото)"
+            }
+
+            return result
+        }
+
         fun fromCalculationState(
             state: CalculationState,
             currentDate: Date = Date()
@@ -111,57 +133,50 @@ data class EstimateDocumentData(
             val otherEngraving = mutableListOf<String>()
 
             state.selectedItems.forEach { item ->
-                val note = item.customNote.trim()
+                val note = cleanEngravingCalculation(item.customNote.trim())
+                val cleanName = cleanEngravingCalculation(item.name.trim())
                 when {
-                    item.name.contains("Стела", ignoreCase = true) -> stele = note.ifBlank { item.name }
-                    item.name.contains("Тумба", ignoreCase = true) -> plinth = note.ifBlank { item.name }
-                    item.name.contains("Цветник", ignoreCase = true) || item.name.contains("Плита", ignoreCase = true) -> flowerbed = note.ifBlank { item.name }
+                    item.name.contains("Стела", ignoreCase = true) -> stele = note.ifBlank { cleanName }
+                    item.name.contains("Тумба", ignoreCase = true) -> plinth = note.ifBlank { cleanName }
+                    item.name.contains("Цветник", ignoreCase = true) || item.name.contains("Плита", ignoreCase = true) -> flowerbed = note.ifBlank { cleanName }
                     item.name.contains("ФИО", ignoreCase = true) -> {
-                        fioEngraving = note.ifBlank { item.name }
+                        fioEngraving = note.ifBlank { cleanName }
                     }
                     item.name.contains("Эпитафия", ignoreCase = true) -> {
-                        epitaph = note.ifBlank { item.name }
+                        epitaph = note.ifBlank { cleanName }
                     }
                     item.category.contains("Гравировка", ignoreCase = true) || item.category.contains("Художественное", ignoreCase = true) -> {
-                        val textWithNote = if (note.isNotBlank() && note != item.name) "${item.name} ($note)" else item.name
-                        otherEngraving.add(textWithNote)
+                        if (!cleanName.contains("ФИО", ignoreCase = true) && !cleanName.contains("Эпитафия", ignoreCase = true)) {
+                            val textWithNote = if (note.isNotBlank() && note != cleanName) "$cleanName ($note)" else cleanName
+                            otherEngraving.add(textWithNote)
+                        }
                     }
                     // Extract from bundle note if present
                     item.customNote.contains("Гравировка ФИО:", ignoreCase = true) || item.customNote.contains("Эпитафия:", ignoreCase = true) -> {
                         if (fioEngraving.isBlank()) {
                             val extractedFio = extractBundleField(item.customNote, "Гравировка ФИО", listOf("Эпитафия:", "Вес:"))
-                            if (!extractedFio.isNullOrBlank()) fioEngraving = extractedFio
+                            if (!extractedFio.isNullOrBlank()) fioEngraving = cleanEngravingCalculation(extractedFio)
                         }
                         if (epitaph.isBlank()) {
                             val extractedEp = extractBundleField(item.customNote, "Эпитафия", listOf("Вес:"))
-                            if (!extractedEp.isNullOrBlank()) epitaph = extractedEp
+                            if (!extractedEp.isNullOrBlank()) epitaph = cleanEngravingCalculation(extractedEp)
                         }
                     }
                 }
             }
 
-            val finalEngravingInfo = buildString {
-                if (fioEngraving.isNotBlank()) {
-                    append(fioEngraving)
-                } else if (state.deceasedName.isNotBlank()) {
-                    append(state.deceasedName)
-                }
-                if (otherEngraving.isNotEmpty()) {
-                    if (isNotEmpty()) append("; ")
-                    append(otherEngraving.joinToString("; "))
-                }
-            }
+            val finalEngravingInfo = if (otherEngraving.isNotEmpty()) otherEngraving.joinToString("; ") else ""
 
             val docItems = state.selectedItems.mapIndexed { index, item ->
                 EstimateDocumentItem(
                     number = index + 1,
-                    name = item.name,
+                    name = cleanEngravingCalculation(item.name),
                     category = item.category,
                     unit = item.unit,
                     quantity = item.quantity,
                     unitPrice = item.unitPrice,
                     totalPrice = item.totalPrice,
-                    customNote = item.customNote
+                    customNote = cleanEngravingCalculation(item.customNote)
                 )
             }
 
@@ -215,56 +230,49 @@ data class EstimateDocumentData(
             val otherEngraving = mutableListOf<String>()
 
             items.forEach { item ->
-                val note = item.customNote.trim()
+                val note = cleanEngravingCalculation(item.customNote.trim())
+                val cleanName = cleanEngravingCalculation(item.name.trim())
                 when {
-                    item.name.contains("Стела", ignoreCase = true) -> stele = note.ifBlank { item.name }
-                    item.name.contains("Тумба", ignoreCase = true) -> plinth = note.ifBlank { item.name }
-                    item.name.contains("Цветник", ignoreCase = true) || item.name.contains("Плита", ignoreCase = true) -> flowerbed = note.ifBlank { item.name }
+                    item.name.contains("Стела", ignoreCase = true) -> stele = note.ifBlank { cleanName }
+                    item.name.contains("Тумба", ignoreCase = true) -> plinth = note.ifBlank { cleanName }
+                    item.name.contains("Цветник", ignoreCase = true) || item.name.contains("Плита", ignoreCase = true) -> flowerbed = note.ifBlank { cleanName }
                     item.name.contains("ФИО", ignoreCase = true) -> {
-                        fioEngraving = note.ifBlank { item.name }
+                        fioEngraving = note.ifBlank { cleanName }
                     }
                     item.name.contains("Эпитафия", ignoreCase = true) -> {
-                        epitaph = note.ifBlank { item.name }
+                        epitaph = note.ifBlank { cleanName }
                     }
                     item.category.contains("Гравировка", ignoreCase = true) || item.category.contains("Художественное", ignoreCase = true) -> {
-                        val textWithNote = if (note.isNotBlank() && note != item.name) "${item.name} ($note)" else item.name
-                        otherEngraving.add(textWithNote)
+                        if (!cleanName.contains("ФИО", ignoreCase = true) && !cleanName.contains("Эпитафия", ignoreCase = true)) {
+                            val textWithNote = if (note.isNotBlank() && note != cleanName) "$cleanName ($note)" else cleanName
+                            otherEngraving.add(textWithNote)
+                        }
                     }
                     item.customNote.contains("Гравировка ФИО:", ignoreCase = true) || item.customNote.contains("Эпитафия:", ignoreCase = true) -> {
                         if (fioEngraving.isBlank()) {
                             val extractedFio = extractBundleField(item.customNote, "Гравировка ФИО", listOf("Эпитафия:", "Вес:"))
-                            if (!extractedFio.isNullOrBlank()) fioEngraving = extractedFio
+                            if (!extractedFio.isNullOrBlank()) fioEngraving = cleanEngravingCalculation(extractedFio)
                         }
                         if (epitaph.isBlank()) {
                             val extractedEp = extractBundleField(item.customNote, "Эпитафия", listOf("Вес:"))
-                            if (!extractedEp.isNullOrBlank()) epitaph = extractedEp
+                            if (!extractedEp.isNullOrBlank()) epitaph = cleanEngravingCalculation(extractedEp)
                         }
                     }
                 }
             }
 
-            val finalEngravingInfo = buildString {
-                if (fioEngraving.isNotBlank()) {
-                    append(fioEngraving)
-                } else if (order.deceasedName.isNotBlank()) {
-                    append(order.deceasedName)
-                }
-                if (otherEngraving.isNotEmpty()) {
-                    if (isNotEmpty()) append("; ")
-                    append(otherEngraving.joinToString("; "))
-                }
-            }
+            val finalEngravingInfo = if (otherEngraving.isNotEmpty()) otherEngraving.joinToString("; ") else ""
 
             val docItems = items.mapIndexed { index, item ->
                 EstimateDocumentItem(
                     number = index + 1,
-                    name = item.name,
+                    name = cleanEngravingCalculation(item.name),
                     category = item.category,
                     unit = item.unit,
                     quantity = item.quantity,
                     unitPrice = item.unitPrice,
                     totalPrice = item.totalPrice,
-                    customNote = item.customNote
+                    customNote = cleanEngravingCalculation(item.customNote)
                 )
             }
 

@@ -3,4 +3,6 @@
     <cache-path name="docx_cache" path="." />
     <files-path name="docx_files" path="." />
     <external-files-path name="docx_external" path="." />
+    <external-path name="external_files" path="." />
+    <external-cache-path name="external_cache" path="." />
 </paths>

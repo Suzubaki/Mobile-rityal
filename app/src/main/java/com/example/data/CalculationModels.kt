@@ -50,6 +50,15 @@ object FormatUtils {
         return "${formatPrice(amountByn)} (${russianFormat.format(usdAmount)} $)"
     }
 
+    fun formatEur(amountEur: Double): String {
+        return "${russianFormat.format(amountEur)} €"
+    }
+
+    fun formatBynAndEur(amountByn: Double, eurRate: Double): String {
+        val eurAmount = if (eurRate > 0) amountByn / eurRate else 0.0
+        return "${formatPrice(amountByn)} (${russianFormat.format(eurAmount)} €)"
+    }
+
     fun formatNumber(value: Double): String {
         return russianFormat.format(value)
     }
@@ -67,6 +76,8 @@ object PriceFormatter {
     fun formatRub(amount: Double): String = FormatUtils.formatPrice(amount)
     fun formatNumber(value: Double): String = FormatUtils.formatNumber(value)
     fun formatWithUsd(amountByn: Double, usdRate: Double): String = FormatUtils.formatBynAndUsd(amountByn, usdRate)
+    fun formatEur(amountEur: Double): String = FormatUtils.formatEur(amountEur)
+    fun formatWithEur(amountByn: Double, eurRate: Double): String = FormatUtils.formatBynAndEur(amountByn, eurRate)
 }
 
 object OrderJsonAdapter {

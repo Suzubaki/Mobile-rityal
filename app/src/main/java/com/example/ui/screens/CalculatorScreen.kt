@@ -22,6 +22,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.CalculatedItemData
+import com.example.data.EstimateDocumentData
+import com.example.data.FactoryOrderDocumentData
 import com.example.data.PriceFormatter
 import com.example.data.PriceItem
 import com.example.data.toModel
@@ -37,13 +39,20 @@ fun CalculatorScreen(
     activePrices: List<PriceItem>
 ) {
     val context = LocalContext.current
-    val stoneMaterials by viewModel.stoneMaterials.collectAsStateWithLifecycle()
-    val sizePresets by viewModel.sizePresets.collectAsStateWithLifecycle()
+    val activeStoneMaterials by viewModel.activeStoneMaterials.collectAsStateWithLifecycle()
+    val activeSizePresets by viewModel.activeSizePresets.collectAsStateWithLifecycle()
     val constructorServicePrices by viewModel.constructorServicePrices.collectAsStateWithLifecycle()
     val constructorPricesMap = remember(constructorServicePrices) {
         constructorServicePrices.associate { it.key to it.price }
     }
     val usdRate by viewModel.usdExchangeRate.collectAsStateWithLifecycle()
+    val eurRate by viewModel.eurExchangeRate.collectAsStateWithLifecycle()
+    val activeEngravingFonts by viewModel.activeEngravingFonts.collectAsStateWithLifecycle()
+    val activeEngravingDrawings by viewModel.activeEngravingDrawings.collectAsStateWithLifecycle()
+    val activePhotoSizes by viewModel.activePhotoSizes.collectAsStateWithLifecycle()
+    val activePhotoFrames by viewModel.activePhotoFrames.collectAsStateWithLifecycle()
+    val activeVases by viewModel.activeVases.collectAsStateWithLifecycle()
+
 
     var showCatalogSheet by remember { mutableStateOf(false) }
     var showMonumentBuilder by remember { mutableStateOf(false) }
@@ -52,6 +61,8 @@ fun CalculatorScreen(
     var showClientDetailsCard by remember { mutableStateOf(false) }
     var showClearConfirmation by remember { mutableStateOf(false) }
     var showSaveOrderDialog by remember { mutableStateOf(false) }
+    var showEstimatePreview by remember { mutableStateOf(false) }
+    var previewInitialTab by remember { mutableStateOf(0) }
 
     var editingItemIndex by remember { mutableStateOf<Int?>(null) }
     var editingQuantityText by remember { mutableStateOf("") }
@@ -193,6 +204,27 @@ fun CalculatorScreen(
                             )
                         }
 
+                        // Dates of Birth and Death for deceased
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = calcState.deceasedBirthDate,
+                                onValueChange = { viewModel.updateClientDetails(deceasedBirthDate = it) },
+                                label = { Text("Дата рождения (ДД.ММ.ГГГГ)") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f).testTag("input_deceased_birth")
+                            )
+                            OutlinedTextField(
+                                value = calcState.deceasedDeathDate,
+                                onValueChange = { viewModel.updateClientDetails(deceasedDeathDate = it) },
+                                label = { Text("Дата смерти (ДД.ММ.ГГГГ)") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f).testTag("input_deceased_death")
+                            )
+                        }
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -236,11 +268,13 @@ fun CalculatorScreen(
                 onClick = { showMonumentBuilder = true },
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(48.dp)
                     .testTag("open_monument_builder_btn"),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 ),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
             ) {
                 Icon(Icons.Default.Terrain, contentDescription = null, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
@@ -253,22 +287,24 @@ fun CalculatorScreen(
             ) {
                 FilledTonalButton(
                     onClick = { showCatalogSheet = true },
-                    modifier = Modifier.weight(1f).testTag("open_catalog_btn"),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                    modifier = Modifier.weight(1f).height(42.dp).testTag("open_catalog_btn"),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Icon(Icons.Default.AddShoppingCart, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Каталог расценок", maxLines = 1)
+                    Text("Каталог расценок", maxLines = 1, fontWeight = FontWeight.Medium)
                 }
 
                 OutlinedButton(
                     onClick = { showDimensionCalculators = true },
-                    modifier = Modifier.weight(1f).testTag("open_dimension_calc_btn"),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                    modifier = Modifier.weight(1f).height(42.dp).testTag("open_dimension_calc_btn"),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Icon(Icons.Default.SquareFoot, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Замеры", maxLines = 1)
+                    Text("Замеры", maxLines = 1, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -415,21 +451,49 @@ fun CalculatorScreen(
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
 
-                // Primary Action: Generate Word Document
-                Button(
-                    onClick = { viewModel.generateAndShareDocx(context) },
-                    enabled = calcState.selectedItems.isNotEmpty(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("generate_word_btn"),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    ),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                // Primary Actions: Preview Document, Client Word, Factory Word
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(Icons.Default.Description, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Сформировать Word (.docx)", fontWeight = FontWeight.Bold)
+                    Button(
+                        onClick = {
+                            previewInitialTab = 0
+                            showEstimatePreview = true
+                        },
+                        enabled = calcState.selectedItems.isNotEmpty(),
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .height(46.dp)
+                            .testTag("preview_estimate_btn"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
+                        Icon(Icons.Default.Description, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Договор клиенту", fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
+
+                    FilledTonalButton(
+                        onClick = {
+                            previewInitialTab = 1
+                            showEstimatePreview = true
+                        },
+                        enabled = calcState.selectedItems.isNotEmpty(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(46.dp)
+                            .testTag("preview_factory_btn"),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
+                        Icon(Icons.Default.PrecisionManufacturing, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Наряд завода", fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
                 }
 
                 // Secondary Action Buttons: Discount, Save, Share Text
@@ -439,8 +503,12 @@ fun CalculatorScreen(
                 ) {
                     OutlinedButton(
                         onClick = { showDiscountDialog = true },
-                        modifier = Modifier.weight(1f).testTag("discount_btn"),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(40.dp)
+                            .testTag("discount_btn"),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
                     ) {
                         Icon(Icons.Default.Percent, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
@@ -450,8 +518,12 @@ fun CalculatorScreen(
                     FilledTonalButton(
                         onClick = { showSaveOrderDialog = true },
                         enabled = calcState.selectedItems.isNotEmpty(),
-                        modifier = Modifier.weight(1f).testTag("save_order_btn"),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(40.dp)
+                            .testTag("save_order_btn"),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
                     ) {
                         Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
@@ -461,8 +533,12 @@ fun CalculatorScreen(
                     OutlinedButton(
                         onClick = { viewModel.shareEstimate(context) },
                         enabled = calcState.selectedItems.isNotEmpty(),
-                        modifier = Modifier.weight(1f).testTag("share_estimate_btn"),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(40.dp)
+                            .testTag("share_estimate_btn"),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
                     ) {
                         Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
@@ -475,13 +551,73 @@ fun CalculatorScreen(
 
     // --- Dialogs ---
 
+    if (showEstimatePreview && calcState.selectedItems.isNotEmpty()) {
+        val docData = remember(calcState) {
+            EstimateDocumentData.fromCalculationState(calcState)
+        }
+        val factoryData = remember(calcState) {
+            FactoryOrderDocumentData.fromCalculationState(calcState)
+        }
+        EstimatePreviewDialog(
+            data = docData,
+            factoryData = factoryData,
+            initialTab = previewInitialTab,
+            onDismissRequest = { showEstimatePreview = false },
+            onShowMessage = { msg ->
+                viewModel.showMessage(msg)
+            }
+        )
+    }
+
     if (showMonumentBuilder) {
+        val initialBuilderFio = buildString {
+            if (calcState.deceasedName.isNotBlank()) {
+                append(calcState.deceasedName.trim())
+            } else if (calcState.deceasedLastName.isNotBlank() || calcState.deceasedFirstName.isNotBlank()) {
+                append("${calcState.deceasedLastName} ${calcState.deceasedFirstName} ${calcState.deceasedMiddleName}".trim())
+            }
+            if (calcState.deceasedBirthDate.isNotBlank() || calcState.deceasedDeathDate.isNotBlank()) {
+                if (isNotEmpty()) append("\n")
+                append("${calcState.deceasedBirthDate} — ${calcState.deceasedDeathDate}".trim(' ', '—', '-'))
+            }
+        }
+
         MonumentBuilderDialog(
-            materials = stoneMaterials.map { it.toModel() },
-            sizePresets = sizePresets.map { it.toModel() },
+            materials = activeStoneMaterials.map { it.toModel() },
+            sizePresets = activeSizePresets.map { it.toModel() },
             servicePrices = constructorServicePrices.associate { it.key to it.price },
             constructorServicePrices = constructorServicePrices,
+            fonts = activeEngravingFonts,
+            drawings = activeEngravingDrawings,
+            photoSizes = activePhotoSizes,
+            photoFrames = activePhotoFrames,
+            vases = activeVases,
             usdRate = usdRate,
+            eurRate = eurRate,
+            initialFioText = initialBuilderFio,
+            initialEpitaphText = calcState.epitaphText,
+            onUpdateFactoryDetails = { lName, fName, mName, bDate, dDate, crossInfo, photoInfo, frameInfo, epText, plateDecor, addInfo, mat, ob, pl, fb, sl, vs, dism ->
+                viewModel.updateFactoryDetails(
+                    deceasedLastName = lName,
+                    deceasedFirstName = fName,
+                    deceasedMiddleName = mName,
+                    deceasedBirthDate = bDate,
+                    deceasedDeathDate = dDate,
+                    crossInfo = crossInfo,
+                    photoVignetteInfo = photoInfo,
+                    frameInfo = frameInfo,
+                    epitaphText = epText,
+                    plateDecoration = plateDecor,
+                    additionsInfo = addInfo,
+                    monumentMaterial = mat,
+                    obeliskInfo = ob,
+                    plinthInfo = pl,
+                    flowerbedInfo = fb,
+                    slabInfo = sl,
+                    vaseInfo = vs,
+                    dismantlingInfo = dism
+                )
+            },
             onDismiss = { showMonumentBuilder = false },
             onAddSingleItem = { name, cat, unit, price, qty, note ->
                 viewModel.addCustomItemToCalculation(name, cat, unit, price, qty, note)

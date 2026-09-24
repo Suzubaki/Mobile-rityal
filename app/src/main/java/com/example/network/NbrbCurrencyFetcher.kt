@@ -31,16 +31,29 @@ object NbrbCurrencyFetcher {
         "https://www.nbrb.by/api/exrates/rates?periodicity=0"
     )
 
+    private val NBRB_EUR_API_ENDPOINTS = listOf(
+        "https://api.nbrb.by/exrates/rates/451",
+        "https://www.nbrb.by/api/exrates/rates/451",
+        "https://api.nbrb.by/exrates/rates/EUR?parammode=2",
+        "https://www.nbrb.by/api/exrates/rates/EUR?parammode=2",
+        "https://api.nbrb.by/exrates/rates?periodicity=0"
+    )
+
     // 3. Fallback international rate providers in case nbrb.by is unreachable
     private val FALLBACK_ENDPOINTS = listOf(
         "https://open.er-api.com/v6/latest/USD",
         "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json"
     )
 
+    private val FALLBACK_EUR_ENDPOINTS = listOf(
+        "https://open.er-api.com/v6/latest/EUR",
+        "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/eur.json"
+    )
+
     suspend fun fetchUsdRateWithDetails(): CurrencyRateResult? = withContext(Dispatchers.IO) {
         // Step 1: Try HTML scraping from the official nbrb.by/statistics/rates/ratesdaily page
         try {
-            val htmlResult = fetchFromNbrbHtmlPage(NBRB_HTML_URL)
+            val htmlResult = fetchFromNbrbHtmlPage(NBRB_HTML_URL, "USD", "Доллар США")
             if (htmlResult != null) {
                 Log.d(TAG, "Successfully extracted USD rate from HTML page: ${htmlResult.rate}")
                 return@withContext htmlResult
@@ -53,7 +66,7 @@ object NbrbCurrencyFetcher {
         for (apiUrl in NBRB_API_ENDPOINTS) {
             try {
                 val res = if (apiUrl.contains("periodicity=0")) {
-                    fetchFromNbrbList(apiUrl)
+                    fetchFromNbrbList(apiUrl, "USD", 431)
                 } else {
                     fetchFromNbrbDirect(apiUrl)
                 }
@@ -69,7 +82,7 @@ object NbrbCurrencyFetcher {
         // Step 3: Fallback providers
         for (fallbackUrl in FALLBACK_ENDPOINTS) {
             try {
-                val res = fetchFromFallback(fallbackUrl)
+                val res = fetchFromFallback(fallbackUrl, "usd")
                 if (res != null) {
                     Log.d(TAG, "Fetched from fallback $fallbackUrl: ${res.rate}")
                     return@withContext res
@@ -79,12 +92,62 @@ object NbrbCurrencyFetcher {
             }
         }
 
-        Log.e(TAG, "All rate fetch attempts failed.")
+        Log.e(TAG, "All USD rate fetch attempts failed.")
         return@withContext null
     }
 
     suspend fun fetchUsdRate(): Double? {
         return fetchUsdRateWithDetails()?.rate
+    }
+
+    suspend fun fetchEurRateWithDetails(): CurrencyRateResult? = withContext(Dispatchers.IO) {
+        // Step 1: Try HTML scraping
+        try {
+            val htmlResult = fetchFromNbrbHtmlPage(NBRB_HTML_URL, "EUR", "Евро")
+            if (htmlResult != null) {
+                Log.d(TAG, "Successfully extracted EUR rate from HTML page: ${htmlResult.rate}")
+                return@withContext htmlResult
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "HTML parser error: ${e.message}")
+        }
+
+        // Step 2: Try direct NBRB JSON endpoints
+        for (apiUrl in NBRB_EUR_API_ENDPOINTS) {
+            try {
+                val res = if (apiUrl.contains("periodicity=0")) {
+                    fetchFromNbrbList(apiUrl, "EUR", 451)
+                } else {
+                    fetchFromNbrbDirect(apiUrl)
+                }
+                if (res != null) {
+                    Log.d(TAG, "Successfully fetched EUR from NBRB API $apiUrl: ${res.rate}")
+                    return@withContext res
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "NBRB EUR API endpoint $apiUrl error: ${e.message}")
+            }
+        }
+
+        // Step 3: Fallback providers
+        for (fallbackUrl in FALLBACK_EUR_ENDPOINTS) {
+            try {
+                val res = fetchFromFallback(fallbackUrl, "eur")
+                if (res != null) {
+                    Log.d(TAG, "Fetched EUR from fallback $fallbackUrl: ${res.rate}")
+                    return@withContext res
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Fallback EUR $fallbackUrl error: ${e.message}")
+            }
+        }
+
+        Log.e(TAG, "All EUR rate fetch attempts failed.")
+        return@withContext null
+    }
+
+    suspend fun fetchEurRate(): Double? {
+        return fetchEurRateWithDetails()?.rate
     }
 
     private fun openConnection(urlString: String): HttpURLConnection {
@@ -106,9 +169,9 @@ object NbrbCurrencyFetcher {
 
     /**
      * Parses the official rates page HTML: https://www.nbrb.by/statistics/rates/ratesdaily
-     * Finds the row for USD / Доллар США and extracts the official rate.
+     * Finds the row for currency (e.g. USD / EUR) and extracts the official rate.
      */
-    private fun fetchFromNbrbHtmlPage(urlString: String): CurrencyRateResult? {
+    private fun fetchFromNbrbHtmlPage(urlString: String, codeStr: String, nameRuStr: String): CurrencyRateResult? {
         var conn: HttpURLConnection? = null
         try {
             conn = openConnection(urlString)
@@ -116,21 +179,19 @@ object NbrbCurrencyFetcher {
             if (code in 200..299) {
                 val html = conn.inputStream.bufferedReader().use { it.readText() }
 
-                // 1. Search for USD row in the table
-                // Pattern for rows like: <td>Доллар США</td>...<td>3,2545</td> or USD ... 3.2545
-                val usdIndex = html.indexOf("USD", ignoreCase = true).let {
-                    if (it != -1) it else html.indexOf("Доллар США", ignoreCase = true)
+                // 1. Search for currency row in the table
+                val curIndex = html.indexOf(codeStr, ignoreCase = true).let {
+                    if (it != -1) it else html.indexOf(nameRuStr, ignoreCase = true)
                 }
 
-                if (usdIndex != -1) {
-                    val snippet = html.substring(usdIndex, (usdIndex + 600).coerceAtMost(html.length))
-                    // Look for decimal number like 3,2545 or 3.2545 or 3,2500
+                if (curIndex != -1) {
+                    val snippet = html.substring(curIndex, (curIndex + 600).coerceAtMost(html.length))
+                    // Look for decimal number like 3,2545 or 3.2545 or 3,5500
                     val rateRegex = Pattern.compile("(\\d{1,2}[.,]\\d{2,4})")
                     val matcher = rateRegex.matcher(snippet)
                     while (matcher.find()) {
                         val numStr = matcher.group(1)?.replace(',', '.') ?: continue
                         val parsedRate = numStr.toDoubleOrNull()
-                        // USD to BYN is typically between 1.5 and 10.0
                         if (parsedRate != null && parsedRate > 1.5 && parsedRate < 15.0) {
                             return CurrencyRateResult(
                                 rate = parsedRate,
@@ -172,7 +233,7 @@ object NbrbCurrencyFetcher {
         return null
     }
 
-    private fun fetchFromNbrbList(urlString: String): CurrencyRateResult? {
+    private fun fetchFromNbrbList(urlString: String, targetAbbr: String, targetId: Int): CurrencyRateResult? {
         var conn: HttpURLConnection? = null
         try {
             conn = openConnection(urlString)
@@ -184,7 +245,7 @@ object NbrbCurrencyFetcher {
                     val item = jsonArray.getJSONObject(i)
                     val abbr = item.optString("Cur_Abbreviation")
                     val curId = item.optInt("Cur_ID")
-                    if (abbr.equals("USD", ignoreCase = true) || curId == 431) {
+                    if (abbr.equals(targetAbbr, ignoreCase = true) || curId == targetId) {
                         val officialRate = item.optDouble("Cur_OfficialRate", -1.0)
                         val scale = item.optDouble("Cur_Scale", 1.0)
                         val date = item.optString("Date", null)
@@ -203,7 +264,7 @@ object NbrbCurrencyFetcher {
         return null
     }
 
-    private fun fetchFromFallback(urlString: String): CurrencyRateResult? {
+    private fun fetchFromFallback(urlString: String, currencyKey: String): CurrencyRateResult? {
         var conn: HttpURLConnection? = null
         try {
             conn = openConnection(urlString)
@@ -216,15 +277,15 @@ object NbrbCurrencyFetcher {
                     val rates = json.getJSONObject("rates")
                     val byn = rates.optDouble("BYN", -1.0)
                     if (byn > 0) {
-                        return CurrencyRateResult(rate = byn, source = "Курс BYN/USD")
+                        return CurrencyRateResult(rate = byn, source = "Курс BYN/${currencyKey.uppercase()}")
                     }
                 }
 
-                if (json.has("usd")) {
-                    val usd = json.getJSONObject("usd")
-                    val byn = usd.optDouble("byn", -1.0)
+                if (json.has(currencyKey.lowercase())) {
+                    val obj = json.getJSONObject(currencyKey.lowercase())
+                    val byn = obj.optDouble("byn", -1.0)
                     if (byn > 0) {
-                        return CurrencyRateResult(rate = byn, source = "Курс BYN/USD")
+                        return CurrencyRateResult(rate = byn, source = "Курс BYN/${currencyKey.uppercase()}")
                     }
                 }
             }
