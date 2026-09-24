@@ -544,6 +544,75 @@ fun CloudSyncSettingsScreen(viewModel: RitualViewModel) {
             }
         }
 
+        // --- PC DESKTOP PRINTING APP (NO HOSTING) ---
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Default.Print, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Text(
+                        text = "💻 Версия для ПК (Печать договоров)",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Text(
+                    text = "Автономная веб-страница (pc_orders.html) для компьютера БЕЗ хостинга. Открывается в любом браузере на ПК прямо с рабочего стола (двойным кликом). Мгновенно печатает сметы и наряды на любой физический принтер Windows (Ctrl+P).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            com.example.util.DocxGenerator.sharePcHtmlApp(context)
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Передать на ПК", maxLines = 1)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            val f = com.example.util.DocxGenerator.savePcHtmlToDownloads(context)
+                            android.widget.Toast.makeText(
+                                context,
+                                "Сохранено в Загрузки: ${f?.name ?: "pc_orders.html"}",
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                    ) {
+                        Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("В Загрузки", maxLines = 1)
+                    }
+                }
+            }
+        }
+
         // --- 4. DATABASE STATISTICS ---
         Card(
             shape = RoundedCornerShape(16.dp),

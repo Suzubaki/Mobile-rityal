@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Environment
 import android.print.PrintAttributes
 import android.print.PrintManager
+import android.util.Log
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.core.content.FileProvider
@@ -221,6 +222,62 @@ object DocxGenerator {
         val chooser = Intent.createChooser(intent, "Поделиться сметным заказом (${file.name})")
         chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(chooser)
+    }
+
+    fun getOrExtractPcHtmlFile(context: Context): File {
+        val targetFile = File(context.cacheDir, "pc_orders.html")
+        try {
+            context.assets.open("pc_orders.html").use { input ->
+                FileOutputStream(targetFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("DocxGenerator", "Failed to extract pc_orders.html from assets: ${e.message}")
+        }
+        return targetFile
+    }
+
+    fun sharePcHtmlApp(context: Context) {
+        val file = getOrExtractPcHtmlFile(context)
+        val uri: Uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/html"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, "ПК-версия для печати заказов (Два Ангела)")
+            putExtra(Intent.EXTRA_TEXT, "Файл приложения для ПК. Откройте его на компьютере двойным кликом в браузере (Chrome / Яндекс / Edge) для просмотра заказов и прямой печати договоров на принтер.")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        val chooser = Intent.createChooser(intent, "Отправить файл ПК-версии (pc_orders.html)")
+        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(chooser)
+    }
+
+    fun savePcHtmlToDownloads(context: Context): File? {
+        val sourceFile = getOrExtractPcHtmlFile(context)
+        return try {
+            val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            if (publicDownloads != null) {
+                publicDownloads.mkdirs()
+                val targetFile = File(publicDownloads, "pc_orders.html")
+                FileInputStream(sourceFile).use { input ->
+                    FileOutputStream(targetFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                targetFile
+            } else {
+                sourceFile
+            }
+        } catch (e: Exception) {
+            sourceFile
+        }
     }
 
     /**

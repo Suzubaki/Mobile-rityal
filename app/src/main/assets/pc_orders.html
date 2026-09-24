@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Два Ангела — Заказы и Печать (ПК версия)</title>
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <style>
+        :root {
+            --primary: #1976d2;
+            --primary-dark: #115293;
+            --primary-light: #e3f2fd;
+            --surface: #ffffff;
+            --background: #f4f6f9;
+            --text-primary: #212121;
+            --text-secondary: #666666;
+            --border: #e0e0e0;
+            --success: #2e7d32;
+            --warning: #ed6c02;
+            --danger: #d32f2f;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary-dark);
+            letter-spacing: -0.3px;
+        }
+
+        .brand-badge {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 16px;
+            background: #e8f5e9;
+            color: var(--success);
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 20px;
+            flex: 1;
+        }
+
+        /* Sidebar: Orders list */
+        .sidebar {
+            background: var(--surface);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 110px);
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-box:focus {
+            border-color: var(--primary);
+        }
+
+        .orders-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .order-card {
+            padding: 12px 14px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+            background: #fafafa;
+        }
+
+        .order-card:hover {
+            background: #f0f4f8;
+            border-color: #cbd5e1;
+        }
+
+        .order-card.active {
+            background: var(--primary-light);
+            border-color: var(--primary);
+        }
+
+        .order-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 4px;
+        }
+
+        .order-number {
+            font-weight: 700;
+            color: var(--primary-dark);
+            font-size: 14px;
+        }
+
+        .order-date {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .order-client {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .order-deceased {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .order-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 6px;
+            font-size: 12px;
+        }
+
+        .order-amount {
+            font-weight: 700;
+            color: #1b5e20;
+        }
+
+        .status-pill {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: #e0e0e0;
+            color: #424242;
+            font-weight: 600;
+        }
+
+        .status-pill.done { background: #e8f5e9; color: #2e7d32; }
+        .status-pill.process { background: #fff3e0; color: #ef6c00; }
+
+        /* Main Details Pane */
+        .main-pane {
+            background: var(--surface);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 110px);
+            overflow: hidden;
+        }
+
+        .details-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fdfdfd;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: #eceff1;
+            color: #37474f;
+            border: 1px solid #cfd8dc;
+        }
+
+        .btn-secondary:hover {
+            background: #cfd8dc;
+        }
+
+        .details-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .empty-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #888;
+            font-size: 15px;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .info-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .info-block {
+            background: #fafafa;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px 14px;
+        }
+
+        .info-block-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .info-block-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        .items-table th, .items-table td {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            font-size: 13px;
+            text-align: left;
+        }
+
+        .items-table th {
+            background: #f1f5f9;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .items-table tr:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+
+        /* Print Container (Hidden on screen) */
+        #printArea {
+            display: none;
+        }
+
+        /* PRINT STYLES */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printArea, #printArea * {
+                visibility: visible;
+            }
+            #printArea {
+                display: block;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <h1>ДВА АНГЕЛА</h1>
+            <span class="brand-badge">ПК Версия (Печать)</span>
+        </div>
+        <div class="status-badge" id="connStatus">
+            <div class="status-dot"></div>
+            <span id="connStatusText">Подключение к базе...</span>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <input type="text" id="searchInput" class="search-box" placeholder="🔍 Поиск по заказам, клиенту, ФИО...">
+            </div>
+            <div class="orders-list" id="ordersList">
+                <div class="empty-placeholder">Загрузка заказов из облака...</div>
+            </div>
+        </div>
+
+        <!-- Main Details -->
+        <div class="main-pane">
+            <div class="details-header" id="detailsHeader" style="display: none;">
+                <div>
+                    <h2 id="viewOrderNumber" style="font-size: 18px; color: var(--primary-dark);">Заказ</h2>
+                    <span id="viewOrderDate" style="font-size: 12px; color: var(--text-secondary);"></span>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="printCustomerEstimate()">
+                        🖨️ Печать: Договор / Смета (А4)
+                    </button>
+                    <button class="btn btn-secondary" onclick="printFactoryOrder()">
+                        🏭 Печать: Заказ для завода (А4)
+                    </button>
+                </div>
+            </div>
+
+            <div class="details-content" id="detailsContent">
+                <div class="empty-placeholder">
+                    👈 Выберите заказ из списка слева для просмотра и печати договора
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden area for clean A4 printing -->
+    <div id="printArea"></div>
+
+    <script>
+        // Firebase Configuration (Matching your mobile app)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBOzkw_mMXjES9dMcBT70EwQRLD7ehWiUc",
+            projectId: "dwa-angeld",
+            storageBucket: "dwa-angeld.firebasestorage.app",
+            appId: "1:108964409159:android:9de2af51a6bd1f7fefe662"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let allOrders = [];
+        let selectedOrder = null;
+
+        const connStatusText = document.getElementById("connStatusText");
+        const ordersListEl = document.getElementById("ordersList");
+        const searchInput = document.getElementById("searchInput");
+        const detailsHeader = document.getElementById("detailsHeader");
+        const detailsContent = document.getElementById("detailsContent");
+        const printArea = document.getElementById("printArea");
+
+        // Realtime Firestore Listener
+        db.collection("orders").onSnapshot((snapshot) => {
+            connStatusText.textContent = `Синхронизировано (${snapshot.size} заказов)`;
+            allOrders = [];
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                data.id = doc.id;
+                allOrders.push(data);
+            });
+
+            // Sort by update date / order number descending
+            allOrders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            renderOrdersList(allOrders);
+
+            if (selectedOrder) {
+                const updated = allOrders.find(o => o.id === selectedOrder.id);
+                if (updated) selectOrder(updated);
+            }
+        }, (error) => {
+            console.error("Firestore error:", error);
+            connStatusText.textContent = "Ошибка связи с облаком";
+            connStatusText.parentElement.style.background = "#ffebee";
+            connStatusText.parentElement.style.color = "#d32f2f";
+            connStatusText.previousElementSibling.style.background = "#d32f2f";
+        });
+
+        // Search filter
+        searchInput.addEventListener("input", (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            if (!query) {
+                renderOrdersList(allOrders);
+                return;
+            }
+            const filtered = allOrders.filter(o => 
+                (o.orderNumber && o.orderNumber.toLowerCase().includes(query)) ||
+                (o.clientName && o.clientName.toLowerCase().includes(query)) ||
+                (o.deceasedName && o.deceasedName.toLowerCase().includes(query)) ||
+                (o.clientPhone && o.clientPhone.toLowerCase().includes(query))
+            );
+            renderOrdersList(filtered);
+        });
+
+        function renderOrdersList(orders) {
+            if (orders.length === 0) {
+                ordersListEl.innerHTML = '<div class="empty-placeholder">Нет заказов по запросу</div>';
+                return;
+            }
+
+            ordersListEl.innerHTML = orders.map(order => {
+                const isActive = selectedOrder && selectedOrder.id === order.id;
+                const formattedDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString('ru-RU') : (order.updatedAt ? new Date(order.updatedAt).toLocaleDateString('ru-RU') : '');
+                const total = (order.totalAmount || 0).toFixed(2);
+                
+                return `
+                    <div class="order-card ${isActive ? 'active' : ''}" onclick="selectOrderById('${order.id}')">
+                        <div class="order-card-header">
+                            <span class="order-number">№ ${escapeHtml(order.orderNumber || '—')}</span>
+                            <span class="order-date">${formattedDate}</span>
+                        </div>
+                        <div class="order-client">${escapeHtml(order.clientName || 'Без имени')}</div>
+                        <div class="order-deceased">Усопший: ${escapeHtml(order.deceasedName || '—')}</div>
+                        <div class="order-footer">
+                            <span class="order-amount">${total} BYN</span>
+                            <span class="status-pill ${order.status === 'Готов' ? 'done' : 'process'}">${escapeHtml(order.status || 'В работе')}</span>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        window.selectOrderById = function(id) {
+            const ord = allOrders.find(o => o.id === id);
+            if (ord) selectOrder(ord);
+        };
+
+        function selectOrder(order) {
+            selectedOrder = order;
+            renderOrdersList(allOrders);
+
+            detailsHeader.style.display = "flex";
+            document.getElementById("viewOrderNumber").textContent = `Заказ № ${order.orderNumber || '—'}`;
+            const formattedDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString('ru-RU') : '';
+            document.getElementById("viewOrderDate").textContent = `Оформлен: ${formattedDate}`;
+
+            let items = [];
+            try {
+                if (order.itemsJson) {
+                    items = JSON.parse(order.itemsJson);
+                }
+            } catch (e) {
+                console.error("Failed to parse itemsJson", e);
+            }
+
+            const itemsRows = items.map((item, idx) => `
+                <tr>
+                    <td class="text-center">${idx + 1}</td>
+                    <td>
+                        <strong>${escapeHtml(item.name || '')}</strong>
+                        ${item.customNote ? `<br><small style="color:#666;">${escapeHtml(item.customNote)}</small>` : ''}
+                    </td>
+                    <td>${escapeHtml(item.category || '—')}</td>
+                    <td class="text-right">${item.quantity || 1}</td>
+                    <td class="text-right">${(item.price || 0).toFixed(2)}</td>
+                    <td class="text-right"><strong>${((item.price || 0) * (item.quantity || 1)).toFixed(2)}</strong></td>
+                </tr>
+            `).join("");
+
+            detailsContent.innerHTML = `
+                <div class="info-cards-grid">
+                    <div class="info-block">
+                        <div class="info-block-title">Заказчик</div>
+                        <div class="info-block-value">${escapeHtml(order.clientName || '—')}</div>
+                        <div style="font-size:12px; color:#555; margin-top:2px;">Тел: ${escapeHtml(order.clientPhone || '—')}</div>
+                    </div>
+                    <div class="info-block">
+                        <div class="info-block-title">Усопший</div>
+                        <div class="info-block-value">${escapeHtml(order.deceasedName || '—')}</div>
+                    </div>
+                    <div class="info-block">
+                        <div class="info-block-title">Кладбище и участок</div>
+                        <div class="info-block-value">${escapeHtml(order.cemeteryName || '—')}</div>
+                        <div style="font-size:12px; color:#555; margin-top:2px;">Участок: ${escapeHtml(order.plotNumber || '—')}</div>
+                    </div>
+                    <div class="info-block">
+                        <div class="info-block-title">Финансы</div>
+                        <div class="info-block-value" style="color: #1b5e20;">${(order.totalAmount || 0).toFixed(2)} BYN</div>
+                        <div style="font-size:12px; color:#555; margin-top:2px;">Аванс: ${(order.prepaymentAmount || 0).toFixed(2)} | Долг: ${(order.remainingAmount || 0).toFixed(2)}</div>
+                    </div>
+                </div>
+
+                ${order.notes ? `
+                    <div style="background:#fffde7; border:1px solid #ffe082; padding:10px 14px; border-radius:6px; margin-bottom:16px; font-size:13px;">
+                        <strong>Примечание:</strong> ${escapeHtml(order.notes)}
+                    </div>
+                ` : ''}
+
+                <h3 style="font-size: 15px; margin-bottom: 8px; color: #333;">Позиции заказа (${items.length}):</h3>
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;" class="text-center">№</th>
+                            <th>Наименование</th>
+                            <th>Категория</th>
+                            <th style="width: 60px;" class="text-right">Кол-во</th>
+                            <th style="width: 90px;" class="text-right">Цена (BYN)</th>
+                            <th style="width: 100px;" class="text-right">Сумма (BYN)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsRows || '<tr><td colspan="6" class="text-center" style="padding:20px;">Нет позиций</td></tr>'}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // PRINT 1: Customer Estimate (A4 Portrait)
+        window.printCustomerEstimate = function() {
+            if (!selectedOrder) return;
+            const ord = selectedOrder;
+            let items = [];
+            try { items = JSON.parse(ord.itemsJson || '[]'); } catch (e) {}
+
+            const formattedDate = ord.createdAt ? new Date(ord.createdAt).toLocaleDateString('ru-RU') : '';
+            const subtotal = (ord.subtotalAmount || ord.totalAmount || 0).toFixed(2);
+            const discount = (ord.discountAmount || 0).toFixed(2);
+            const total = (ord.totalAmount || 0).toFixed(2);
+            const prepayment = (ord.prepaymentAmount || 0).toFixed(2);
+            const remaining = (ord.remainingAmount || 0).toFixed(2);
+
+            const tableRows = items.map((it, idx) => `
+                <tr>
+                    <td style="text-align:center;">${idx + 1}</td>
+                    <td>
+                        <strong>${escapeHtml(it.name || '')}</strong>
+                        ${it.customNote ? `<br><small style="color:#555;">${escapeHtml(it.customNote)}</small>` : ''}
+                    </td>
+                    <td style="text-align:center;">${it.quantity || 1}</td>
+                    <td style="text-align:right;">${(it.price || 0).toFixed(2)}</td>
+                    <td style="text-align:right;"><strong>${((it.price || 0) * (it.quantity || 1)).toFixed(2)}</strong></td>
+                </tr>
+            `).join("");
+
+            printArea.innerHTML = `
+                <style>
+                    @page { size: A4 portrait; margin: 8mm 10mm 8mm 10mm; }
+                    .print-est { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 11px; color: #111; line-height: 1.25; }
+                    .p-header { text-align: center; border-bottom: 2px solid #2b5797; padding-bottom: 4px; margin-bottom: 8px; }
+                    .p-header h1 { font-size: 16px; margin: 0 0 2px 0; color: #2b5797; text-transform: uppercase; }
+                    .p-grid { display: flex; flex-wrap: wrap; margin-bottom: 8px; border: 1px solid #ddd; background: #fdfdfd; border-radius: 4px; padding: 6px; }
+                    .p-col { flex: 1 1 45%; margin: 2px 6px; }
+                    .p-label { font-size: 9px; text-transform: uppercase; color: #777; font-weight: bold; }
+                    .p-val { font-size: 11px; font-weight: 500; }
+                    .p-table { width: 100%; border-collapse: collapse; margin-top: 6px; margin-bottom: 8px; }
+                    .p-table th, .p-table td { border: 1px solid #ccc; padding: 4px 6px; font-size: 10px; }
+                    .p-table th { background-color: #f2f5f9; color: #2b5797; font-weight: bold; }
+                    .p-totals { width: 280px; margin-left: auto; margin-top: 6px; margin-bottom: 8px; }
+                    .p-tot-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 11px; border-bottom: 1px dashed #eee; }
+                    .p-grand { font-size: 13px; font-weight: bold; color: #2b5797; border-top: 2px solid #2b5797; border-bottom: 2px solid #2b5797; padding: 4px 0; }
+                    .p-sigs { display: flex; justify-content: space-between; margin-top: 14px; padding-top: 8px; border-top: 1px solid #ccc; }
+                </style>
+                <div class="print-est">
+                    <div class="p-header">
+                        <h1>СМЕТНО-ДОГОВОРНОЙ ЗАКАЗ № ${escapeHtml(ord.orderNumber || '—')}</h1>
+                        <div style="font-size: 11px; color: #555; font-style: italic;">от ${formattedDate} г.</div>
+                    </div>
+
+                    <div class="p-grid">
+                        <div class="p-col">
+                            <div class="p-label">Исполнитель</div>
+                            <div class="p-val">ИП Ступак О.О<br>Тел: +375 29 542-18-09, +375 29 727-36-37<br>Ольшаны рынок БРОДОК павильон 35</div>
+                        </div>
+                        <div class="p-col">
+                            <div class="p-label">Заказчик</div>
+                            <div class="p-val"><strong>${escapeHtml(ord.clientName || '—')}</strong><br>Тел: ${escapeHtml(ord.clientPhone || '—')}</div>
+                        </div>
+                        ${ord.deceasedName ? `
+                        <div class="p-col" style="flex: 1 1 100%; margin-top: 4px;">
+                            <div class="p-label">ФИО Усопшего</div>
+                            <div class="p-val"><strong>${escapeHtml(ord.deceasedName)}</strong></div>
+                        </div>` : ''}
+                    </div>
+
+                    <table class="p-table">
+                        <thead>
+                            <tr>
+                                <th style="width:25px;">№</th>
+                                <th>Наименование товара / услуги</th>
+                                <th style="width:45px;">Кол-во</th>
+                                <th style="width:75px;">Цена (BYN)</th>
+                                <th style="width:85px;">Сумма (BYN)</th>
+                            </tr>
+                        </thead>
+                        <tbody>${tableRows}</tbody>
+                    </table>
+
+                    <div class="p-totals">
+                        <div class="p-tot-row"><span>Промежуточный итог:</span><span>${subtotal} BYN</span></div>
+                        ${ord.discountAmount > 0 ? `<div class="p-tot-row"><span>Скидка:</span><span>-${discount} BYN</span></div>` : ''}
+                        <div class="p-tot-row p-grand"><span>ИТОГО К ОПЛАТЕ:</span><span>${total} BYN</span></div>
+                        <div class="p-tot-row"><span>Предоплата:</span><span>${prepayment} BYN</span></div>
+                        <div class="p-tot-row" style="font-weight:bold;"><span>Остаток платежа:</span><span>${remaining} BYN</span></div>
+                    </div>
+
+                    <div class="p-sigs">
+                        <div style="flex:1; margin-right:20px;">
+                            <div>Исполнитель: _________________</div>
+                        </div>
+                        <div style="flex:1; text-align:right;">
+                            <div>Заказчик: _________________</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            window.print();
+        };
+
+        // PRINT 2: Factory Production Order (A4 Portrait)
+        window.printFactoryOrder = function() {
+            if (!selectedOrder) return;
+            const ord = selectedOrder;
+            let items = [];
+            try { items = JSON.parse(ord.itemsJson || '[]'); } catch (e) {}
+
+            const formattedDate = ord.createdAt ? new Date(ord.createdAt).toLocaleDateString('ru-RU') : '';
+            
+            // Extract items for Factory sheet
+            let photos = [];
+            let frames = [];
+            let crosses = [];
+            let obelisks = [];
+            let tumbas = [];
+            let cvetniks = [];
+            let plitas = [];
+            let vases = [];
+            let material = "";
+
+            items.forEach(it => {
+                const name = it.name || "";
+                const note = it.customNote || "";
+                const cleanName = name.replace(/\(.*?\)/g, "").trim();
+
+                if (name.includes("Фото") || name.includes("Медальон") || name.includes("Керамик") || name.includes("Портрет")) {
+                    photos.push(cleanName);
+                } else if (name.includes("Рамка") || name.includes("Врезка")) {
+                    frames.push(cleanName.includes("врезка") ? "врезка" : cleanName.replace(/рамка/gi, "").trim());
+                } else if (name.includes("Крест")) {
+                    crosses.push(cleanName);
+                } else if (name.includes("Стела") || name.includes("Обелиск") || it.category.includes("Стелы")) {
+                    obelisks.push(name);
+                } else if (name.includes("Тумба") || name.includes("Подставка")) {
+                    tumbas.push(name);
+                } else if (name.includes("Цветник")) {
+                    cvetniks.push(name);
+                } else if (name.includes("Плита")) {
+                    plitas.push(name);
+                } else if (name.includes("Ваза") || name.includes("Лампада")) {
+                    vases.push(name);
+                }
+            });
+
+            const fioParts = (ord.deceasedName || '').trim().split(" ");
+            const lName = fioParts[0] || '';
+            const fName = fioParts[1] || '';
+            const mName = fioParts.slice(2).join(" ") || '';
+
+            printArea.innerHTML = `
+                <style>
+                    @page { size: A4 portrait; margin: 6mm 10mm 6mm 10mm; }
+                    .p-fac { font-family: "Times New Roman", Times, serif; font-size: 12px; color: #000; line-height: 1.3; }
+                    .f-row { margin-bottom: 4px; display: flex; flex-wrap: wrap; align-items: baseline; }
+                    .f-lbl { font-weight: normal; white-space: nowrap; }
+                    .f-val { font-weight: bold; border-bottom: 1px solid #000; display: inline-block; padding: 0 4px; min-height: 16px; }
+                    .f-div { border-bottom: 2px solid #000; margin: 8px 0 6px 0; }
+                    .f-title { font-weight: bold; text-align: center; margin: 6px 0 8px 0; font-size: 13px; }
+                    .f-blank { border-bottom: 1px solid #444; height: 16px; margin-bottom: 2px; }
+                </style>
+                <div class="p-fac">
+                    <div class="f-row">
+                        <span class="f-lbl">Дата</span> <span class="f-val" style="min-width: 90px;">${formattedDate}</span>.
+                        <span class="f-lbl">&nbsp;&nbsp;Ф. И О заказчика.</span> <span class="f-val" style="min-width: 240px;">${escapeHtml(ord.clientName || '')}</span>
+                        <span class="f-lbl">&nbsp;&nbsp;Срок</span> <span class="f-val" style="min-width: 110px;">__________</span>
+                    </div>
+
+                    <div class="f-row">
+                        <span class="f-lbl">Телефон</span> <span class="f-val" style="min-width: 180px;">${escapeHtml(ord.clientPhone || '')}</span>
+                        <span class="f-lbl">&nbsp;&nbsp;адрес уст-ки</span> <span class="f-val" style="min-width: 280px;">${escapeHtml((ord.cemeteryName || '') + (ord.plotNumber ? ' уч. ' + ord.plotNumber : ''))}</span>
+                    </div>
+
+                    <div style="height: 6px;"></div>
+
+                    <div class="f-row">
+                        <span class="f-lbl">Фамилия.ум.</span> <span class="f-val" style="min-width: 220px;">${escapeHtml(lName)}</span>
+                        <span class="f-lbl">&nbsp;&nbsp;Имя ум.</span> <span class="f-val" style="min-width: 220px;">${escapeHtml(fName)}</span>
+                    </div>
+
+                    <div class="f-row">
+                        <span class="f-lbl">Отчество ум.</span> <span class="f-val" style="min-width: 280px;">${escapeHtml(mName)}</span>
+                    </div>
+
+                    <div class="f-row">
+                        <span class="f-lbl">Ч.М.Г.рождения</span> <span class="f-val" style="min-width: 170px;">__________</span>
+                        <span class="f-lbl">&nbsp;&nbsp;Ч.М.Г.смерти</span> <span class="f-val" style="min-width: 170px;">__________</span>
+                    </div>
+
+                    <div class="f-row">
+                        <span class="f-lbl">Крест</span> <span class="f-val" style="min-width: 110px;">${escapeHtml(crosses.join(', ') || '__________')}</span>
+                        <span class="f-lbl">&nbsp;&nbsp;виньетка(фото)</span> <span class="f-val" style="min-width: 150px;">${escapeHtml(photos.join(', ') || '__________')}</span>
+                        <span class="f-lbl">&nbsp;&nbsp;рамка</span> <span class="f-val" style="min-width: 110px;">${escapeHtml(frames.join(', ') || '__________')}</span>
+                    </div>
+
+                    <div class="f-row">
+                        <span class="f-lbl">Эпитафия.</span> <span class="f-val" style="min-width: 520px;">__________</span>
+                    </div>
+                    <div class="f-blank"></div>
+
+                    <div class="f-row">
+                        <span class="f-lbl">Оформление плиты</span> <span class="f-val" style="min-width: 500px;">__________</span>
+                    </div>
+                    <div class="f-blank"></div>
+
+                    <div class="f-row">
+                        <span class="f-lbl">Дополнения</span> <span class="f-val" style="min-width: 510px;">${escapeHtml(ord.notes || '')}</span>
+                    </div>
+                    <div class="f-blank"></div>
+
+                    <div class="f-div"></div>
+
+                    <div class="f-title">. &nbsp; &nbsp; ФОРМА И РАЗМЕРЫ П-КА</div>
+
+                    <div class="f-row">
+                        <span class="f-lbl">Материал</span> <span class="f-val" style="min-width: 480px;">Габбро-Диабаз (Карелия)</span>
+                    </div>
+
+                    <div class="f-row">
+                        <span class="f-lbl">Обелиск</span> <span class="f-val" style="min-width: 490px;">${escapeHtml(obelisks.join(', ') || '__________')}</span>
+                    </div>
+
+                    <div class="f-row">
+                        <span class="f-lbl">Тумба</span> <span class="f-val" style="min-width: 505px;">${escapeHtml(tumbas.join(', ') || '__________')}</span>
+                    </div>
+
+                    <div class="f-row">
+                        <span class="f-lbl">Цветник</span> <span class="f-val" style="min-width: 490px;">${escapeHtml(cvetniks.join(', ') || '__________')}</span>
+                    </div>
+
+                    <div class="f-row">
+                        <span class="f-lbl">Плита</span> <span class="f-val" style="min-width: 505px;">${escapeHtml(plitas.join(', ') || '__________')}</span>
+                    </div>
+
+                    <div class="f-row">
+                        <span class="f-lbl">Ваза / Лампада</span> <span class="f-val" style="min-width: 450px;">${escapeHtml(vases.join(', ') || '__________')}</span>
+                    </div>
+
+                    <div style="margin-top: 20px; border-top: 1px dashed #aaa; padding-top: 6px; font-size: 9pt;">
+                        <strong>ИП Ступак О.О</strong> &nbsp;&nbsp;&nbsp;&nbsp; Viber, Telegram &nbsp;&nbsp; тел.: +375295421809, +375297273637<br>
+                        &lt;&lt;ДВА АНГЕЛА&gt;&gt; Ольшаны рынок БРОДОК павильон 35
+                    </div>
+                </div>
+            `;
+
+            window.print();
+        };
+
+        function escapeHtml(text) {
+            if (!text) return "";
+            return String(text)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
