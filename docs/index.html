@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Два Ангела — Калькулятор и Управление Заказами (ПК)</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <style>
+        :root {
+            --primary: #1976d2;
+            --primary-dark: #0d47a1;
+            --primary-light: #e3f2fd;
+            --secondary: #475569;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #ea580c;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        header {
+            background: #ffffff;
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .brand-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--primary-dark);
+            letter-spacing: -0.5px;
+        }
+
+        .badge-ip {
+            font-size: 11px;
+            background: #f1f5f9;
+            color: #475569;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .header-nav {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .nav-btn:hover {
+            background: #f1f5f9;
+            color: var(--text-main);
+        }
+
+        .nav-btn.active {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            border-color: #bfdbfe;
+        }
+
+        .conn-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: #ecfdf5;
+            color: var(--success);
+            border: 1px solid #a7f3d0;
+        }
+
+        .conn-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        /* Main layout */
+        main {
+            max-width: 1480px;
+            margin: 20px auto;
+            padding: 0 20px;
+            width: 100%;
+            flex: 1;
+        }
+
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 480px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            margin-bottom: 18px;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 10px;
+        }
+
+        .card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Form elements */
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        input[type="text"], input[type="number"], select, textarea {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 13px;
+            outline: none;
+            background: #ffffff;
+            transition: border-color 0.2s;
+            width: 100%;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+        }
+
+        .chip-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .chip {
+            padding: 5px 10px;
+            border-radius: 6px;
+            background: #f1f5f9;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid #e2e8f0;
+            transition: all 0.15s;
+        }
+
+        .chip:hover {
+            background: #e2e8f0;
+        }
+
+        .chip.selected {
+            background: var(--primary);
+            color: #ffffff;
+            border-color: var(--primary-dark);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 9px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #15803d; }
+        .btn-secondary { background: #e2e8f0; color: #334155; }
+        .btn-secondary:hover { background: #cbd5e1; }
+        .btn-danger { background: #fee2e2; color: var(--danger); border: 1px solid #fca5a5; }
+        .btn-danger:hover { background: #fecaca; }
+        .btn-block { width: 100%; }
+
+        /* Estimate Side Summary */
+        .estimate-panel {
+            position: sticky;
+            top: 75px;
+        }
+
+        .estimate-items-list {
+            max-height: 380px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 14px;
+        }
+
+        .estimate-item-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 13px;
+        }
+
+        .estimate-item-row:last-child {
+            border-bottom: none;
+        }
+
+        .estimate-item-name {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .estimate-item-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .estimate-item-price {
+            font-weight: 700;
+            color: #1e293b;
+            white-space: nowrap;
+        }
+
+        .remove-item-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 16px;
+            margin-left: 8px;
+        }
+
+        .remove-item-btn:hover { color: var(--danger); }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 13px;
+        }
+
+        .summary-total {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--primary-dark);
+            border-top: 2px solid var(--border);
+            margin-top: 8px;
+            padding-top: 10px;
+        }
+
+        /* Orders list view */
+        .orders-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .orders-table th, .orders-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+            text-align: left;
+        }
+
+        .orders-table th {
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .orders-table tr:hover {
+            background: #f1f5f9;
+            cursor: pointer;
+        }
+
+        .status-tag {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+
+        .status-work { background: #fff7ed; color: #c2410c; }
+        .status-ready { background: #ecfdf5; color: #047857; }
+        .status-done { background: #eff6ff; color: #1d4ed8; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-body {
+            background: white;
+            border-radius: 10px;
+            max-width: 700px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        /* PRINT STYLES */
+        #printArea {
+            display: none;
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #printArea, #printArea * { visibility: visible; }
+            #printArea {
+                display: block;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- HEADER -->
+        <header>
+            <div class="brand-area">
+                <div class="brand-logo">ДВА АНГЕЛА</div>
+                <div class="badge-ip">ИП Ступак О.О • Павильон 35</div>
+            </div>
+
+            <nav class="header-nav">
+                <button class="nav-btn" :class="{active: activeTab === 'calc'}" @click="activeTab = 'calc'">
+                    🧮 Калькулятор сметы
+                </button>
+                <button class="nav-btn" :class="{active: activeTab === 'orders'}" @click="activeTab = 'orders'">
+                    📋 Журнал заказов ({{ orders.length }})
+                </button>
+                <button class="nav-btn" :class="{active: activeTab === 'prices'}" @click="activeTab = 'prices'">
+                    💰 Прайс-лист и тарифы
+                </button>
+            </nav>
+
+            <div class="conn-pill">
+                <div class="conn-dot"></div>
+                <span>{{ syncStatusText }}</span>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT -->
+        <main>
+            <!-- TAB 1: CALCULATOR & ORDER CREATION -->
+            <div v-if="activeTab === 'calc'" class="grid-2col">
+                <!-- Left: Order Builder Steps -->
+                <div>
+                    <!-- Step 1: Customer Details -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">👤 1. Данные клиента и покойного</span>
+                            <span style="font-size: 12px; color: var(--text-muted);">Заказ № {{ orderForm.orderNumber }}</span>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>ФИО Заказчика *</label>
+                                <input type="text" v-model="orderForm.clientName" placeholder="Иванов Иван Иванович">
+                            </div>
+                            <div class="form-group">
+                                <label>Телефон *</label>
+                                <input type="text" v-model="orderForm.clientPhone" placeholder="+375 29 000-00-00">
+                            </div>
+                            <div class="form-group">
+                                <label>Срок сдачи / Дата</label>
+                                <input type="text" v-model="orderForm.deadline" placeholder="к 1 мая / Радоница">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>ФИО Усопшего</label>
+                                <input type="text" v-model="orderForm.deceasedName" placeholder="Петров Петр Петрович">
+                            </div>
+                            <div class="form-group">
+                                <label>Даты жизни</label>
+                                <input type="text" v-model="orderForm.datesText" placeholder="01.01.1950 — 15.08.2023">
+                            </div>
+                            <div class="form-group">
+                                <label>Кладбище / Место</label>
+                                <input type="text" v-model="orderForm.cemeteryName" placeholder="Ольшаны, центральное, уч. 14">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Monument / Obelisk -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">🪦 2. Стела (Обелиск)</span>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label>Популярные размеры:</label>
+                            <div class="chip-group">
+                                <span class="chip" 
+                                      v-for="p in sizePresets" 
+                                      :class="{selected: monument.height === p.h && monument.width === p.w && monument.thickness === p.t}"
+                                      @click="setPreset(p)">
+                                    {{ p.label }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Высота (см)</label>
+                                <input type="number" v-model.number="monument.height">
+                            </div>
+                            <div class="form-group">
+                                <label>Ширина (см)</label>
+                                <input type="number" v-model.number="monument.width">
+                            </div>
+                            <div class="form-group">
+                                <label>Толщина (см)</label>
+                                <input type="number" v-model.number="monument.thickness">
+                            </div>
+                            <div class="form-group">
+                                <label>Материал</label>
+                                <select v-model="monument.material">
+                                    <option v-for="m in stoneMaterials" :value="m.name">{{ m.name }}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Полировка</label>
+                                <select v-model="monument.polish">
+                                    <option value="Круговая (со всех сторон)">Круговая (со всех сторон)</option>
+                                    <option value="Лицевая + бока">Лицевая + бока</option>
+                                    <option value="Только лицевая">Только лицевая</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Форма / Фигурная резка</label>
+                                <select v-model="monument.shape">
+                                    <option value="Прямой (стандарт)">Прямой (стандарт)</option>
+                                    <option value="Волна / Плечики (+60 BYN)">Волна / Плечики (+60 BYN)</option>
+                                    <option value="Сложная резка с крестом (+120 BYN)">Сложная резка с крестом (+120 BYN)</option>
+                                    <option value="Скорбящая / Дерево (+250 BYN)">Скорбящая / Дерево (+250 BYN)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="align-self: flex-end;">
+                                <button class="btn btn-secondary btn-block" @click="addMonumentToEstimate">
+                                    ➕ Добавить стелу в смету
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Tumba & Cvetnik -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">🧱 3. Подставка (Тумба) и Цветник / Плита</span>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Подставка (Тумба)</label>
+                                <select v-model="tumbaType">
+                                    <option value="none">Без тумбы</option>
+                                    <option value="standard">Тумба 60×20×15 (Габбро) — 150 BYN</option>
+                                    <option value="large">Тумба 70×20×20 (Габбро) — 200 BYN</option>
+                                    <option value="double">Тумба 120×20×20 (двойная) — 320 BYN</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="align-self: flex-end;">
+                                <button class="btn btn-secondary btn-block" @click="addTumbaToEstimate" :disabled="tumbaType === 'none'">
+                                    ➕ Добавить тумбу
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-row" style="margin-top: 10px;">
+                            <div class="form-group">
+                                <label>Цветник / Плита</label>
+                                <select v-model="cvetnikType">
+                                    <option value="none">Без цветника</option>
+                                    <option value="standard">Цветник стандартный 100×50×8 — 180 BYN</option>
+                                    <option value="semi">Цветник полузакрытый — 260 BYN</option>
+                                    <option value="full_plate">Глухая надгробная плита 100×50×5 — 380 BYN</option>
+                                    <option value="double_cvetnik">Цветник двойной 100×110 — 320 BYN</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="align-self: flex-end;">
+                                <button class="btn btn-secondary btn-block" @click="addCvetnikToEstimate" :disabled="cvetnikType === 'none'">
+                                    ➕ Добавить цветник / плиту
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Engraving, Photo & Texts -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">🎨 4. Художественное оформление (Гравировка и Портрет)</span>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Портрет / Фото</label>
+                                <select v-model="photoType">
+                                    <option value="none">Без портрета</option>
+                                    <option value="engraving">Гравировка портрета станочная — 120 BYN</option>
+                                    <option value="engraving_hand">Гравировка портрета ручная — 160 BYN</option>
+                                    <option value="ceram_13x18">Фотокерамика 13×18 см — 120 BYN</option>
+                                    <option value="ceram_18x24">Фотокерамика 18×24 см — 160 BYN</option>
+                                    <option value="glass_20x30">Фото на стекле триплекс 20×30 см — 360 BYN</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Рамка / Врезка для фото</label>
+                                <select v-model="frameType">
+                                    <option value="none">Без рамки</option>
+                                    <option value="vrezka">Врезка медальона в гранит — 40 BYN</option>
+                                    <option value="bronze">Бронзовая рамка Caggiati — 140 BYN</option>
+                                    <option value="engraved">Гравированная рамка виньетка — 30 BYN</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="align-self: flex-end;">
+                                <button class="btn btn-secondary btn-block" @click="addPhotoToEstimate" :disabled="photoType === 'none'">
+                                    ➕ Добавить портрет
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-row" style="margin-top: 10px;">
+                            <div class="form-group">
+                                <label>Крест (гравировка)</label>
+                                <select v-model="crossType">
+                                    <option value="none">Без креста</option>
+                                    <option value="cross_orth">Крест православный 8-кон. — 35 BYN</option>
+                                    <option value="cross_cath">Крест католический 4-кон. — 35 BYN</option>
+                                    <option value="cross_rel">Крест резной с распятием — 55 BYN</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Цветы / Свеча / Икона</label>
+                                <select v-model="decorType">
+                                    <option value="none">Без декора</option>
+                                    <option value="rose_2">Две розы у подножия — 35 BYN</option>
+                                    <option value="candle">Горящая свеча с розами — 35 BYN</option>
+                                    <option value="angel">Молящийся ангел — 55 BYN</option>
+                                    <option value="military">Военная звезда / орден — 40 BYN</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="align-self: flex-end;">
+                                <button class="btn btn-secondary btn-block" @click="addDecorToEstimate" :disabled="crossType === 'none' && decorType === 'none'">
+                                    ➕ Добавить рисунки
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-row" style="margin-top: 10px;">
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>Текст ФИО и дат для подсчета знаков:</label>
+                                <input type="text" v-model="lettersInput" placeholder="Иванов Иван Иванович 1950 — 2024" @input="calcLetters">
+                            </div>
+                            <div class="form-group">
+                                <label>Количество знаков: {{ letterCount }}</label>
+                                <button class="btn btn-secondary btn-block" @click="addLettersToEstimate" :disabled="letterCount === 0">
+                                    ➕ Добавить надпись ({{ (letterCount * prices.letter_standard).toFixed(2) }} BYN)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Installation, Works & Accessories -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">⚒️ 5. Установка, Благоустройство и Аксессуары</span>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Монтажные работы:</label>
+                                <div style="display:flex; flex-direction:column; gap:6px; margin-top:4px;">
+                                    <label style="font-weight:normal; cursor:pointer;">
+                                        <input type="checkbox" v-model="works.install"> Установка комплекта памятника ({{ prices.installation_base_price }} BYN)
+                                    </label>
+                                    <label style="font-weight:normal; cursor:pointer;">
+                                        <input type="checkbox" v-model="works.demontazh"> Демонтаж старого памятника ({{ prices.demontazh_base_price }} BYN)
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Укладка плитки (м²)</label>
+                                <div style="display:flex; gap:8px;">
+                                    <input type="number" v-model.number="works.tileSqm" placeholder="м²" style="width: 80px;">
+                                    <button class="btn btn-secondary" @click="addTileToEstimate" :disabled="!works.tileSqm">
+                                        Добавить плитку
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Аксессуары:</label>
+                                <select v-model="accessoryType">
+                                    <option value="none">Выберите аксессуар</option>
+                                    <option value="vase_25">Ваза гранитная 25 см — 110 BYN</option>
+                                    <option value="vase_30">Ваза гранитная 30 см — 140 BYN</option>
+                                    <option value="lampada">Лампада гранитная — 130 BYN</option>
+                                    <option value="bench">Скамья кованая — 160 BYN</option>
+                                    <option value="table">Столик кованый — 140 BYN</option>
+                                </select>
+                                <button class="btn btn-secondary" style="margin-top:6px;" @click="addAccessoryToEstimate" :disabled="accessoryType === 'none'">
+                                    ➕ Добавить аксессуар
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 6: Custom Item -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">➕ Произвольная позиция вручную</span>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>Название услуги или товара</label>
+                                <input type="text" v-model="customItem.name" placeholder="Например: Дополнительная надпись на обратной стороне">
+                            </div>
+                            <div class="form-group">
+                                <label>Цена (BYN)</label>
+                                <input type="number" v-model.number="customItem.price">
+                            </div>
+                            <div class="form-group">
+                                <label>Кол-во</label>
+                                <input type="number" v-model.number="customItem.qty">
+                            </div>
+                            <div class="form-group" style="align-self: flex-end;">
+                                <button class="btn btn-secondary btn-block" @click="addCustomItemToEstimate">
+                                    Добавить в чек
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Estimate Side Summary & Direct Printing -->
+                <div class="estimate-panel">
+                    <div class="card" style="border-top: 4px solid var(--primary);">
+                        <div class="card-header">
+                            <span class="card-title">🧾 Смета заказа № {{ orderForm.orderNumber }}</span>
+                            <span style="font-size:12px; font-weight:600; color:var(--primary-dark);">
+                                {{ estimateItems.length }} поз.
+                            </span>
+                        </div>
+
+                        <!-- Items list -->
+                        <div class="estimate-items-list">
+                            <div v-if="estimateItems.length === 0" style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">
+                                В смете пока нет позиций.<br>Выберите параметры памятника слева.
+                            </div>
+                            <div v-for="(item, idx) in estimateItems" :key="idx" class="estimate-item-row">
+                                <div style="flex:1;">
+                                    <div class="estimate-item-name">{{ item.name }}</div>
+                                    <div class="estimate-item-meta">{{ item.quantity }} шт. × {{ item.price.toFixed(2) }} BYN</div>
+                                </div>
+                                <div class="estimate-item-price">{{ (item.price * item.quantity).toFixed(2) }} BYN</div>
+                                <button class="remove-item-btn" @click="removeItem(idx)" title="Удалить">✕</button>
+                            </div>
+                        </div>
+
+                        <!-- Financial calculations -->
+                        <div class="summary-row">
+                            <span>Промежуточный итог:</span>
+                            <strong>{{ subtotalAmount.toFixed(2) }} BYN</strong>
+                        </div>
+                        <div class="summary-row">
+                            <span>Скидка (BYN):</span>
+                            <input type="number" v-model.number="discountAmount" style="width: 100px; text-align: right; padding: 4px 8px;">
+                        </div>
+                        <div class="summary-row summary-total">
+                            <span>ИТОГО К ОПЛАТЕ:</span>
+                            <span>{{ totalAmount.toFixed(2) }} BYN</span>
+                        </div>
+                        <div class="summary-row" style="font-size: 12px; color: var(--text-muted);">
+                            <span>В долларах (~{{ (totalAmount / prices.usd_exchange_rate).toFixed(0) }} $):</span>
+                            <span>курс {{ prices.usd_exchange_rate }}</span>
+                        </div>
+                        <div class="summary-row" style="margin-top: 6px;">
+                            <span>Предоплата (Аванс):</span>
+                            <input type="number" v-model.number="prepaymentAmount" style="width: 100px; text-align: right; padding: 4px 8px;">
+                        </div>
+                        <div class="summary-row" style="font-weight: 700; color: var(--danger);">
+                            <span>Остаток платежа:</span>
+                            <span>{{ remainingAmount.toFixed(2) }} BYN</span>
+                        </div>
+
+                        <!-- Action buttons: Save & Instant Print -->
+                        <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
+                            <button class="btn btn-success btn-block" @click="saveOrderToFirebase" :disabled="estimateItems.length === 0">
+                                💾 Сохранить заказ в облачную базу
+                            </button>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                                <button class="btn btn-primary" @click="printCurrentEstimate" :disabled="estimateItems.length === 0">
+                                    🖨️ Договор (А4)
+                                </button>
+                                <button class="btn btn-secondary" @click="printCurrentFactoryOrder" :disabled="estimateItems.length === 0">
+                                    🏭 Наряд цеха (А4)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: ORDERS JOURNAL (Live from Firebase) -->
+            <div v-if="activeTab === 'orders'" class="card">
+                <div class="card-header">
+                    <span class="card-title">📋 Журнал оформленных заказов</span>
+                    <input type="text" v-model="ordersSearch" placeholder="🔍 Поиск по ФИО, номеру, телефону..." style="max-width: 320px;">
+                </div>
+
+                <div v-if="loadingOrders" style="padding: 40px; text-align: center; color: var(--text-muted);">
+                    Синхронизация с базой данных...
+                </div>
+
+                <div v-else-if="filteredOrders.length === 0" style="padding: 40px; text-align: center; color: var(--text-muted);">
+                    Нет заказов по запросу
+                </div>
+
+                <table v-else class="orders-table">
+                    <thead>
+                        <tr>
+                            <th>№ Заказа</th>
+                            <th>Дата</th>
+                            <th>Заказчик</th>
+                            <th>Телефон</th>
+                            <th>Усопший</th>
+                            <th>Сумма (BYN)</th>
+                            <th>Аванс / Долг</th>
+                            <th>Статус</th>
+                            <th style="text-align: right;">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="ord in filteredOrders" :key="ord.id" @click="openOrderDetails(ord)">
+                            <td><strong>№ {{ ord.orderNumber || '—' }}</strong></td>
+                            <td>{{ formatDate(ord.createdAt) }}</td>
+                            <td><strong>{{ ord.clientName || 'Без имени' }}</strong></td>
+                            <td>{{ ord.clientPhone || '—' }}</td>
+                            <td>{{ ord.deceasedName || '—' }}</td>
+                            <td style="font-weight: 700; color: #15803d;">{{ (ord.totalAmount || 0).toFixed(2) }}</td>
+                            <td>{{ (ord.prepaymentAmount || 0).toFixed(2) }} / {{ (ord.remainingAmount || 0).toFixed(2) }}</td>
+                            <td>
+                                <span class="status-tag" :class="getStatusClass(ord.status)">
+                                    {{ ord.status || 'В работе' }}
+                                </span>
+                            </td>
+                            <td style="text-align: right;" @click.stop>
+                                <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" @click="printOrderDoc(ord, 'client')">
+                                    🖨️ Договор
+                                </button>
+                                <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; margin-left: 4px;" @click="printOrderDoc(ord, 'factory')">
+                                    🏭 Цех
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TAB 3: PRICE CATALOG & SETTINGS -->
+            <div v-if="activeTab === 'prices'" class="card">
+                <div class="card-header">
+                    <span class="card-title">💰 Базовые тарифы и настройки</span>
+                    <button class="btn btn-success" @click="savePricesToFirebase">
+                        💾 Сохранить тарифы в облако
+                    </button>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Курс доллара (USD к BYN)</label>
+                        <input type="number" step="0.01" v-model.number="prices.usd_exchange_rate">
+                    </div>
+                    <div class="form-group">
+                        <label>Гравировка 1 знака ФИО (BYN)</label>
+                        <input type="number" step="0.1" v-model.number="prices.letter_standard">
+                    </div>
+                    <div class="form-group">
+                        <label>Базовая установка памятника (BYN)</label>
+                        <input type="number" v-model.number="prices.installation_base_price">
+                    </div>
+                    <div class="form-group">
+                        <label>Демонтаж старого (BYN)</label>
+                        <input type="number" v-model.number="prices.demontazh_base_price">
+                    </div>
+                    <div class="form-group">
+                        <label>Укладка плитки за 1 м² (BYN)</label>
+                        <input type="number" v-model.number="prices.measure_tile_price_sqm">
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- PRINT CONTAINER -->
+        <div id="printArea" v-html="printHtmlContent"></div>
+    </div>
+
+    <!-- APPLICATION LOGIC SCRIPT -->
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                // Firebase Config
+                const firebaseConfig = {
+                    apiKey: "AIzaSyBOzkw_mMXjES9dMcBT70EwQRLD7ehWiUc",
+                    projectId: "dwa-angeld",
+                    storageBucket: "dwa-angeld.firebasestorage.app",
+                    appId: "1:108964409159:android:9de2af51a6bd1f7fefe662"
+                };
+
+                firebase.initializeApp(firebaseConfig);
+                const db = firebase.firestore();
+
+                const activeTab = ref('calc');
+                const syncStatusText = ref('Подключение к базе...');
+                const orders = ref([]);
+                const loadingOrders = ref(true);
+                const ordersSearch = ref('');
+                const printHtmlContent = ref('');
+
+                // Default Prices
+                const prices = ref({
+                    usd_exchange_rate: 3.25,
+                    letter_standard: 1.60,
+                    installation_base_price: 500.0,
+                    demontazh_base_price: 150.0,
+                    measure_tile_price_sqm: 85.0
+                });
+
+                // Stone materials & Presets
+                const stoneMaterials = ref([
+                    { name: "Габбро-Диабаз (Карелия, черный)" },
+                    { name: "Аврора (Красно-черный)" },
+                    { name: "Балтик Грин (Зеленый гранит)" },
+                    { name: "Дымовский (Коричневый)" },
+                    { name: "Покостовский (Серый)" },
+                    { name: "Мансуровский (Белый гранит)" }
+                ]);
+
+                const sizePresets = ref([
+                    { label: "80×40×5", h: 80, w: 40, t: 5 },
+                    { label: "100×50×5", h: 100, w: 50, t: 5 },
+                    { label: "100×50×8", h: 100, w: 50, t: 8 },
+                    { label: "120×60×8", h: 120, w: 60, t: 8 },
+                    { label: "120×60×10", h: 120, w: 60, t: 10 },
+                    { label: "140×70×10", h: 140, w: 70, t: 10 }
+                ]);
+
+                // Order Form State
+                const orderForm = ref({
+                    orderNumber: generateOrderNumber(),
+                    clientName: '',
+                    clientPhone: '',
+                    deadline: '',
+                    deceasedName: '',
+                    datesText: '',
+                    cemeteryName: '',
+                    notes: ''
+                });
+
+                // Monument builder
+                const monument = ref({
+                    height: 100,
+                    width: 50,
+                    thickness: 8,
+                    material: "Габбро-Диабаз (Карелия, черный)",
+                    polish: "Круговая (со всех сторон)",
+                    shape: "Прямой (стандарт)"
+                });
+
+                const tumbaType = ref('none');
+                const cvetnikType = ref('none');
+                const photoType = ref('none');
+                const frameType = ref('none');
+                const crossType = ref('none');
+                const decorType = ref('none');
+                const lettersInput = ref('');
+                const letterCount = ref(0);
+                const accessoryType = ref('none');
+
+                const works = ref({
+                    install: false,
+                    demontazh: false,
+                    tileSqm: null
+                });
+
+                const customItem = ref({ name: '', price: 0, qty: 1 });
+                const estimateItems = ref([]);
+                const discountAmount = ref(0);
+                const prepaymentAmount = ref(0);
+
+                // Financial Calculations
+                const subtotalAmount = computed(() => {
+                    return estimateItems.value.reduce((sum, it) => sum + (it.price * it.quantity), 0);
+                });
+
+                const totalAmount = computed(() => {
+                    return Math.max(0, subtotalAmount.value - (discountAmount.value || 0));
+                });
+
+                const remainingAmount = computed(() => {
+                    return Math.max(0, totalAmount.value - (prepaymentAmount.value || 0));
+                });
+
+                // Presets & Form helpers
+                function generateOrderNumber() {
+                    const d = new Date();
+                    const day = String(d.getDate()).padStart(2, '0');
+                    const mo = String(d.getMonth() + 1).padStart(2, '0');
+                    const rnd = Math.floor(100 + Math.random() * 900);
+                    return `${day}/${mo}-${rnd}`;
+                }
+
+                function setPreset(p) {
+                    monument.value.height = p.h;
+                    monument.value.width = p.w;
+                    monument.value.thickness = p.t;
+                }
+
+                function calcLetters() {
+                    const clean = (lettersInput.value || '').replace(/\s+/g, '');
+                    letterCount.value = clean.length;
+                }
+
+                // Add Items to Estimate
+                function addMonumentToEstimate() {
+                    const m = monument.value;
+                    let basePrice = (m.height * m.width * m.thickness * 0.095);
+                    if (m.material.includes("Аврора") || m.material.includes("Балтик")) basePrice *= 1.35;
+                    if (m.shape.includes("+60")) basePrice += 60;
+                    if (m.shape.includes("+120")) basePrice += 120;
+                    if (m.shape.includes("+250")) basePrice += 250;
+
+                    estimateItems.value.push({
+                        name: `Стела ${m.height}×${m.width}×${m.thickness} см (${m.material})`,
+                        category: "Стелы",
+                        price: Math.round(basePrice),
+                        quantity: 1,
+                        customNote: `Полировка: ${m.polish}, Форма: ${m.shape}`
+                    });
+                }
+
+                function addTumbaToEstimate() {
+                    const dict = {
+                        'standard': { name: "Тумба 60×20×15 см (Габбро)", price: 150 },
+                        'large': { name: "Тумба 70×20×20 см (Габбро)", price: 200 },
+                        'double': { name: "Тумба 120×20×20 см (двойная)", price: 320 }
+                    };
+                    if (dict[tumbaType.value]) {
+                        estimateItems.value.push({ ...dict[tumbaType.value], category: "Тумбы", quantity: 1 });
+                    }
+                }
+
+                function addCvetnikToEstimate() {
+                    const dict = {
+                        'standard': { name: "Цветник стандартный 100×50×8 см", price: 180 },
+                        'semi': { name: "Цветник полузакрытый", price: 260 },
+                        'full_plate': { name: "Глухая надгробная плита 100×50×5 см", price: 380 },
+                        'double_cvetnik': { name: "Цветник двойной 100×110 см", price: 320 }
+                    };
+                    if (dict[cvetnikType.value]) {
+                        estimateItems.value.push({ ...dict[cvetnikType.value], category: "Цветники", quantity: 1 });
+                    }
+                }
+
+                function addPhotoToEstimate() {
+                    const dict = {
+                        'engraving': { name: "Гравировка портрета станочная", price: 120 },
+                        'engraving_hand': { name: "Гравировка портрета ручная", price: 160 },
+                        'ceram_13x18': { name: "Фотокерамика 13×18 см", price: 120 },
+                        'ceram_18x24': { name: "Фотокерамика 18×24 см", price: 160 },
+                        'glass_20x30': { name: "Фото на стекле триплекс 20×30 см", price: 360 }
+                    };
+                    if (dict[photoType.value]) {
+                        estimateItems.value.push({ ...dict[photoType.value], category: "Портрет", quantity: 1 });
+                    }
+                    if (frameType.value === 'vrezka') {
+                        estimateItems.value.push({ name: "Врезка медальона в гранит", price: 40, category: "Оформление", quantity: 1 });
+                    } else if (frameType.value === 'bronze') {
+                        estimateItems.value.push({ name: "Бронзовая рамка Caggiati", price: 140, category: "Оформление", quantity: 1 });
+                    }
+                }
+
+                function addDecorToEstimate() {
+                    if (crossType.value === 'cross_orth') {
+                        estimateItems.value.push({ name: "Крест православный (гравировка)", price: 35, category: "Гравировка", quantity: 1 });
+                    } else if (crossType.value === 'cross_cath') {
+                        estimateItems.value.push({ name: "Крест католический (гравировка)", price: 35, category: "Гравировка", quantity: 1 });
+                    } else if (crossType.value === 'cross_rel') {
+                        estimateItems.value.push({ name: "Крест резной с распятием", price: 55, category: "Гравировка", quantity: 1 });
+                    }
+
+                    if (decorType.value === 'rose_2') {
+                        estimateItems.value.push({ name: "Цветы: две розы (гравировка)", price: 35, category: "Гравировка", quantity: 1 });
+                    } else if (decorType.value === 'candle') {
+                        estimateItems.value.push({ name: "Свеча с розами (гравировка)", price: 35, category: "Гравировка", quantity: 1 });
+                    } else if (decorType.value === 'angel') {
+                        estimateItems.value.push({ name: "Молящийся ангел (гравировка)", price: 55, category: "Гравировка", quantity: 1 });
+                    }
+                }
+
+                function addLettersToEstimate() {
+                    const price = Math.round(letterCount.value * prices.value.letter_standard);
+                    estimateItems.value.push({
+                        name: `Гравировка ФИО и дат (${letterCount.value} знаков)`,
+                        category: "Гравировка",
+                        price: price,
+                        quantity: 1,
+                        customNote: lettersInput.value
+                    });
+                }
+
+                function addTileToEstimate() {
+                    const cost = Math.round(works.value.tileSqm * prices.value.measure_tile_price_sqm);
+                    estimateItems.value.push({
+                        name: `Укладка плитки (${works.value.tileSqm} м²)`,
+                        category: "Благоустройство",
+                        price: cost,
+                        quantity: 1
+                    });
+                    works.value.tileSqm = null;
+                }
+
+                function addAccessoryToEstimate() {
+                    const dict = {
+                        'vase_25': { name: "Ваза гранитная 25 см (Габбро)", price: 110 },
+                        'vase_30': { name: "Ваза гранитная 30 см (Габбро)", price: 140 },
+                        'lampada': { name: "Лампада гранитная со стеклом", price: 130 },
+                        'bench': { name: "Скамья кованая с деревом", price: 160 },
+                        'table': { name: "Столик кованый на кладбище", price: 140 }
+                    };
+                    if (dict[accessoryType.value]) {
+                        estimateItems.value.push({ ...dict[accessoryType.value], category: "Аксессуары", quantity: 1 });
+                    }
+                }
+
+                function addCustomItemToEstimate() {
+                    if (!customItem.value.name) return;
+                    estimateItems.value.push({
+                        name: customItem.value.name,
+                        category: "Дополнительно",
+                        price: Number(customItem.value.price) || 0,
+                        quantity: Number(customItem.value.qty) || 1
+                    });
+                    customItem.value.name = '';
+                    customItem.value.price = 0;
+                    customItem.value.qty = 1;
+                }
+
+                function removeItem(idx) {
+                    estimateItems.value.splice(idx, 1);
+                }
+
+                // FIREBASE FIRESTORE SYNC
+                onMounted(() => {
+                    db.collection("orders").onSnapshot((snapshot) => {
+                        loadingOrders.value = false;
+                        syncStatusText.value = `База онлайн (${snapshot.size} заказов)`;
+                        const list = [];
+                        snapshot.forEach((doc) => {
+                            const d = doc.data();
+                            d.id = doc.id;
+                            list.push(d);
+                        });
+                        list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                        orders.value = list;
+                    }, (err) => {
+                        console.error("Firestore sync error:", err);
+                        syncStatusText.value = "Ошибка подключения";
+                    });
+                });
+
+                const filteredOrders = computed(() => {
+                    const q = ordersSearch.value.toLowerCase().trim();
+                    if (!q) return orders.value;
+                    return orders.value.filter(o => 
+                        (o.orderNumber && o.orderNumber.toLowerCase().includes(q)) ||
+                        (o.clientName && o.clientName.toLowerCase().includes(q)) ||
+                        (o.deceasedName && o.deceasedName.toLowerCase().includes(q)) ||
+                        (o.clientPhone && o.clientPhone.toLowerCase().includes(q))
+                    );
+                });
+
+                function saveOrderToFirebase() {
+                    if (estimateItems.value.length === 0) return;
+                    
+                    // Check installation / demontazh checkboxes
+                    if (works.value.install) {
+                        estimateItems.value.push({ name: "Монтаж (установка) памятника", price: prices.value.installation_base_price, category: "Монтаж", quantity: 1 });
+                        works.value.install = false;
+                    }
+                    if (works.value.demontazh) {
+                        estimateItems.value.push({ name: "Демонтаж старого памятника", price: prices.value.demontazh_base_price, category: "Монтаж", quantity: 1 });
+                        works.value.demontazh = false;
+                    }
+
+                    const orderId = "ord_" + Date.now();
+                    const orderDoc = {
+                        id: orderId,
+                        orderNumber: orderForm.value.orderNumber,
+                        clientName: orderForm.value.clientName,
+                        clientPhone: orderForm.value.clientPhone,
+                        deceasedName: orderForm.value.deceasedName,
+                        cemeteryName: orderForm.value.cemeteryName,
+                        plotNumber: "",
+                        createdAt: Date.now(),
+                        updatedAt: Date.now(),
+                        status: "В работе",
+                        subtotalAmount: subtotalAmount.value,
+                        discountPercent: 0,
+                        discountAmount: discountAmount.value || 0,
+                        totalAmount: totalAmount.value,
+                        prepaymentAmount: prepaymentAmount.value || 0,
+                        remainingAmount: remainingAmount.value,
+                        itemsJson: JSON.stringify(estimateItems.value),
+                        notes: orderForm.value.deadline ? `Срок: ${orderForm.value.deadline}` : ""
+                    };
+
+                    db.collection("orders").doc(orderId).set(orderDoc).then(() => {
+                        alert(`✅ Заказ № ${orderForm.value.orderNumber} успешно сохранен в облачную базу!\nОн сразу отображается в мобильном приложении на телефонах.`);
+                        orderForm.value.orderNumber = generateOrderNumber();
+                        orderForm.value.clientName = '';
+                        orderForm.value.clientPhone = '';
+                        orderForm.value.deceasedName = '';
+                        orderForm.value.deadline = '';
+                        estimateItems.value = [];
+                        discountAmount.value = 0;
+                        prepaymentAmount.value = 0;
+                        activeTab.value = 'orders';
+                    }).catch((err) => {
+                        alert("Ошибка сохранения в базу: " + err.message);
+                    });
+                }
+
+                function savePricesToFirebase() {
+                    alert("✅ Тарифы обновлены!");
+                }
+
+                // PRINT TEMPLATES (100% Matching A4 print layout)
+                function printCurrentEstimate() {
+                    const data = {
+                        orderNumber: orderForm.value.orderNumber,
+                        clientName: orderForm.value.clientName,
+                        clientPhone: orderForm.value.clientPhone,
+                        deceasedName: orderForm.value.deceasedName,
+                        createdAt: Date.now(),
+                        subtotalAmount: subtotalAmount.value,
+                        discountAmount: discountAmount.value,
+                        totalAmount: totalAmount.value,
+                        prepaymentAmount: prepaymentAmount.value,
+                        remainingAmount: remainingAmount.value,
+                        items: estimateItems.value
+                    };
+                    executePrintEstimate(data);
+                }
+
+                function printCurrentFactoryOrder() {
+                    const data = {
+                        orderNumber: orderForm.value.orderNumber,
+                        clientName: orderForm.value.clientName,
+                        clientPhone: orderForm.value.clientPhone,
+                        deceasedName: orderForm.value.deceasedName,
+                        cemeteryName: orderForm.value.cemeteryName,
+                        deadline: orderForm.value.deadline,
+                        createdAt: Date.now(),
+                        items: estimateItems.value
+                    };
+                    executePrintFactory(data);
+                }
+
+                function printOrderDoc(ord, type) {
+                    let items = [];
+                    try { items = JSON.parse(ord.itemsJson || '[]'); } catch(e) {}
+                    const data = {
+                        ...ord,
+                        items: items
+                    };
+                    if (type === 'client') {
+                        executePrintEstimate(data);
+                    } else {
+                        executePrintFactory(data);
+                    }
+                }
+
+                function executePrintEstimate(data) {
+                    const dateStr = new Date(data.createdAt || Date.now()).toLocaleDateString('ru-RU');
+                    const rows = (data.items || []).map((it, idx) => `
+                        <tr>
+                            <td style="text-align:center;">${idx + 1}</td>
+                            <td>
+                                <strong>${it.name}</strong>
+                                ${it.customNote ? `<br><small style="color:#555;">${it.customNote}</small>` : ''}
+                            </td>
+                            <td style="text-align:center;">${it.quantity || 1}</td>
+                            <td style="text-align:right;">${(it.price || 0).toFixed(2)}</td>
+                            <td style="text-align:right;"><strong>${((it.price || 0) * (it.quantity || 1)).toFixed(2)}</strong></td>
+                        </tr>
+                    `).join("");
+
+                    printHtmlContent.value = `
+                        <style>
+                            @page { size: A4 portrait; margin: 8mm 10mm 8mm 10mm; }
+                            .p-wrap { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 11px; color: #111; line-height: 1.25; }
+                            .p-head { text-align: center; border-bottom: 2px solid #2b5797; padding-bottom: 4px; margin-bottom: 8px; }
+                            .p-head h1 { font-size: 16px; margin: 0 0 2px 0; color: #2b5797; text-transform: uppercase; }
+                            .p-grid { display: flex; flex-wrap: wrap; margin-bottom: 8px; border: 1px solid #ddd; background: #fdfdfd; border-radius: 4px; padding: 6px; }
+                            .p-col { flex: 1 1 45%; margin: 2px 6px; }
+                            .p-tbl { width: 100%; border-collapse: collapse; margin-top: 6px; margin-bottom: 8px; }
+                            .p-tbl th, .p-tbl td { border: 1px solid #ccc; padding: 4px 6px; font-size: 10px; }
+                            .p-tbl th { background: #f2f5f9; color: #2b5797; font-weight: bold; }
+                            .p-tot { width: 280px; margin-left: auto; margin-top: 6px; margin-bottom: 8px; }
+                            .p-tot-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 11px; border-bottom: 1px dashed #eee; }
+                            .p-grand { font-size: 13px; font-weight: bold; color: #2b5797; border-top: 2px solid #2b5797; border-bottom: 2px solid #2b5797; padding: 4px 0; }
+                            .p-sigs { display: flex; justify-content: space-between; margin-top: 14px; padding-top: 8px; border-top: 1px solid #ccc; }
+                        </style>
+                        <div class="p-wrap">
+                            <div class="p-head">
+                                <h1>СМЕТНО-ДОГОВОРНОЙ ЗАКАЗ № ${data.orderNumber || '—'}</h1>
+                                <div style="font-size: 11px; color: #555; font-style: italic;">от ${dateStr} г.</div>
+                            </div>
+                            <div class="p-grid">
+                                <div class="p-col">
+                                    <div style="font-size: 9px; text-transform: uppercase; color: #777; font-weight: bold;">Исполнитель</div>
+                                    <div style="font-size: 11px; font-weight: 500;">ИП Ступак О.О<br>Тел: +375 29 542-18-09, +375 29 727-36-37<br>Ольшаны рынок БРОДОК павильон 35</div>
+                                </div>
+                                <div class="p-col">
+                                    <div style="font-size: 9px; text-transform: uppercase; color: #777; font-weight: bold;">Заказчик</div>
+                                    <div style="font-size: 11px; font-weight: 500;"><strong>${data.clientName || '—'}</strong><br>Тел: ${data.clientPhone || '—'}</div>
+                                </div>
+                                ${data.deceasedName ? `
+                                <div class="p-col" style="flex: 1 1 100%; margin-top: 4px;">
+                                    <div style="font-size: 9px; text-transform: uppercase; color: #777; font-weight: bold;">ФИО Усопшего</div>
+                                    <div style="font-size: 11px; font-weight: 500;"><strong>${data.deceasedName}</strong></div>
+                                </div>` : ''}
+                            </div>
+                            <table class="p-tbl">
+                                <thead>
+                                    <tr>
+                                        <th style="width:25px;">№</th>
+                                        <th>Наименование товара / услуги</th>
+                                        <th style="width:45px;">Кол-во</th>
+                                        <th style="width:75px;">Цена (BYN)</th>
+                                        <th style="width:85px;">Сумма (BYN)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${rows}</tbody>
+                            </table>
+                            <div class="p-tot">
+                                <div class="p-tot-row"><span>Промежуточный итог:</span><span>${(data.subtotalAmount || data.totalAmount || 0).toFixed(2)} BYN</span></div>
+                                ${data.discountAmount > 0 ? `<div class="p-tot-row"><span>Скидка:</span><span>-${data.discountAmount.toFixed(2)} BYN</span></div>` : ''}
+                                <div class="p-tot-row p-grand"><span>ИТОГО К ОПЛАТЕ:</span><span>${(data.totalAmount || 0).toFixed(2)} BYN</span></div>
+                                <div class="p-tot-row"><span>Предоплата:</span><span>${(data.prepaymentAmount || 0).toFixed(2)} BYN</span></div>
+                                <div class="p-tot-row" style="font-weight:bold;"><span>Остаток платежа:</span><span>${(data.remainingAmount || 0).toFixed(2)} BYN</span></div>
+                            </div>
+                            <div class="p-sigs">
+                                <div style="flex:1;">Исполнитель: _________________</div>
+                                <div style="flex:1; text-align:right;">Заказчик: _________________</div>
+                            </div>
+                        </div>
+                    `;
+                    setTimeout(() => window.print(), 100);
+                }
+
+                function executePrintFactory(data) {
+                    const dateStr = new Date(data.createdAt || Date.now()).toLocaleDateString('ru-RU');
+                    let photos = [], frames = [], crosses = [], obelisks = [], tumbas = [], cvetniks = [], plitas = [];
+
+                    (data.items || []).forEach(it => {
+                        const n = it.name || "";
+                        if (n.includes("Фото") || n.includes("Медальон") || n.includes("Портрет")) photos.push(n);
+                        else if (n.includes("Рамка") || n.includes("Врезка")) frames.push(n);
+                        else if (n.includes("Крест")) crosses.push(n);
+                        else if (n.includes("Стела") || n.includes("Обелиск")) obelisks.push(n);
+                        else if (n.includes("Тумба") || n.includes("Подставка")) tumbas.push(n);
+                        else if (n.includes("Цветник")) cvetniks.push(n);
+                        else if (n.includes("Плита")) plitas.push(n);
+                    });
+
+                    printHtmlContent.value = `
+                        <style>
+                            @page { size: A4 portrait; margin: 6mm 10mm 6mm 10mm; }
+                            .p-fac { font-family: "Times New Roman", Times, serif; font-size: 12px; color: #000; line-height: 1.3; }
+                            .f-row { margin-bottom: 4px; display: flex; flex-wrap: wrap; align-items: baseline; }
+                            .f-lbl { font-weight: normal; white-space: nowrap; }
+                            .f-val { font-weight: bold; border-bottom: 1px solid #000; display: inline-block; padding: 0 4px; min-height: 16px; }
+                        </style>
+                        <div class="p-fac">
+                            <div class="f-row">
+                                <span class="f-lbl">Дата</span> <span class="f-val" style="min-width: 90px;">${dateStr}</span>.
+                                <span class="f-lbl">&nbsp;&nbsp;Ф. И О заказчика.</span> <span class="f-val" style="min-width: 240px;">${data.clientName || ''}</span>
+                                <span class="f-lbl">&nbsp;&nbsp;Срок</span> <span class="f-val" style="min-width: 110px;">${data.deadline || '__________'}</span>
+                            </div>
+                            <div class="f-row">
+                                <span class="f-lbl">Телефон</span> <span class="f-val" style="min-width: 180px;">${data.clientPhone || ''}</span>
+                                <span class="f-lbl">&nbsp;&nbsp;адрес уст-ки</span> <span class="f-val" style="min-width: 280px;">${data.cemeteryName || ''}</span>
+                            </div>
+                            <div style="height: 6px;"></div>
+                            <div class="f-row">
+                                <span class="f-lbl">ФИО Усопшего</span> <span class="f-val" style="min-width: 480px;">${data.deceasedName || ''}</span>
+                            </div>
+                            <div class="f-row">
+                                <span class="f-lbl">Крест</span> <span class="f-val" style="min-width: 110px;">${crosses.join(', ') || '__________'}</span>
+                                <span class="f-lbl">&nbsp;&nbsp;виньетка(фото)</span> <span class="f-val" style="min-width: 150px;">${photos.join(', ') || '__________'}</span>
+                                <span class="f-lbl">&nbsp;&nbsp;рамка</span> <span class="f-val" style="min-width: 110px;">${frames.join(', ') || '__________'}</span>
+                            </div>
+                            <div style="border-bottom: 2px solid #000; margin: 8px 0 6px 0;"></div>
+                            <div style="font-weight: bold; text-align: center; margin: 6px 0 8px 0; font-size: 13px;">. &nbsp; &nbsp; ФОРМА И РАЗМЕРЫ П-КА</div>
+                            <div class="f-row">
+                                <span class="f-lbl">Материал</span> <span class="f-val" style="min-width: 480px;">Габбро-Диабаз (Карелия)</span>
+                            </div>
+                            <div class="f-row">
+                                <span class="f-lbl">Обелиск</span> <span class="f-val" style="min-width: 490px;">${obelisks.join(', ') || '__________'}</span>
+                            </div>
+                            <div class="f-row">
+                                <span class="f-lbl">Тумба</span> <span class="f-val" style="min-width: 505px;">${tumbas.join(', ') || '__________'}</span>
+                            </div>
+                            <div class="f-row">
+                                <span class="f-lbl">Цветник</span> <span class="f-val" style="min-width: 490px;">${cvetniks.join(', ') || '__________'}</span>
+                            </div>
+                            <div class="f-row">
+                                <span class="f-lbl">Плита</span> <span class="f-val" style="min-width: 505px;">${plitas.join(', ') || '__________'}</span>
+                            </div>
+                            <div style="margin-top: 20px; border-top: 1px dashed #aaa; padding-top: 6px; font-size: 9pt;">
+                                <strong>ИП Ступак О.О</strong> &nbsp;&nbsp;&nbsp;&nbsp; Viber, Telegram &nbsp;&nbsp; тел.: +375295421809, +375297273637<br>
+                                &lt;&lt;ДВА АНГЕЛА&gt;&gt; Ольшаны рынок БРОДОК павильон 35
+                            </div>
+                        </div>
+                    `;
+                    setTimeout(() => window.print(), 100);
+                }
+
+                function formatDate(ts) {
+                    if (!ts) return '';
+                    return new Date(ts).toLocaleDateString('ru-RU');
+                }
+
+                function getStatusClass(st) {
+                    if (st === 'Готов') return 'status-ready';
+                    if (st === 'Выдан') return 'status-done';
+                    return 'status-work';
+                }
+
+                return {
+                    activeTab,
+                    syncStatusText,
+                    orders,
+                    loadingOrders,
+                    ordersSearch,
+                    filteredOrders,
+                    prices,
+                    stoneMaterials,
+                    sizePresets,
+                    orderForm,
+                    monument,
+                    tumbaType,
+                    cvetnikType,
+                    photoType,
+                    frameType,
+                    crossType,
+                    decorType,
+                    lettersInput,
+                    letterCount,
+                    works,
+                    accessoryType,
+                    customItem,
+                    estimateItems,
+                    discountAmount,
+                    prepaymentAmount,
+                    subtotalAmount,
+                    totalAmount,
+                    remainingAmount,
+                    printHtmlContent,
+                    setPreset,
+                    calcLetters,
+                    addMonumentToEstimate,
+                    addTumbaToEstimate,
+                    addCvetnikToEstimate,
+                    addPhotoToEstimate,
+                    addDecorToEstimate,
+                    addLettersToEstimate,
+                    addTileToEstimate,
+                    addAccessoryToEstimate,
+                    addCustomItemToEstimate,
+                    removeItem,
+                    saveOrderToFirebase,
+                    savePricesToFirebase,
+                    printCurrentEstimate,
+                    printCurrentFactoryOrder,
+                    printOrderDoc,
+                    formatDate,
+                    getStatusClass
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
