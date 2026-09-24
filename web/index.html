@@ -3,168 +3,216 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Два Ангела — Калькулятор и Управление Заказами (ПК)</title>
-    <!-- Google Fonts -->
+    <title>Два Ангела — Ритуальные памятники и комплексы</title>
+    <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Vue 3 -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+    
+    <!-- Vue 3 & Firebase Compat -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
     <style>
         :root {
-            --primary: #1976d2;
-            --primary-dark: #0d47a1;
-            --primary-light: #e3f2fd;
-            --secondary: #475569;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --border: #e2e8f0;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --success: #16a34a;
-            --danger: #dc2626;
-            --warning: #ea580c;
+            --md-sys-color-primary: #1976d2;
+            --md-sys-color-on-primary: #ffffff;
+            --md-sys-color-primary-container: #dbeafe;
+            --md-sys-color-on-primary-container: #1e40af;
+            --md-sys-color-surface: #ffffff;
+            --md-sys-color-surface-variant: #f1f5f9;
+            --md-sys-color-on-surface: #0f172a;
+            --md-sys-color-on-surface-variant: #475569;
+            --md-sys-color-outline: #cbd5e1;
+            --md-sys-color-background: #f8fafc;
+            --md-sys-color-error: #dc2626;
+            --md-sys-color-success: #16a34a;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg);
-            color: var(--text-main);
-            min-height: 100vh;
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-surface);
             display: flex;
-            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
         }
 
-        /* Header */
-        header {
-            background: #ffffff;
-            border-bottom: 1px solid var(--border);
-            padding: 12px 24px;
+        /* Material Icons helper */
+        .icon {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 20px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            vertical-align: middle;
+        }
+
+        /* Side Navigation Rail (1 to 1 like Android NavigationRail) */
+        .nav-rail {
+            width: 100px;
+            background: var(--md-sys-color-surface);
+            border-right: 1px solid var(--md-sys-color-outline);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px 0;
+            gap: 12px;
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        .nav-rail-brand {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .nav-rail-logo {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--md-sys-color-primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 2px 6px rgba(25, 118, 210, 0.3);
+        }
+
+        .nav-rail-item {
+            width: 76px;
+            height: 64px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: var(--md-sys-color-on-surface-variant);
+            transition: all 0.2s;
+            position: relative;
+            padding: 4px;
+        }
+
+        .nav-rail-item:hover {
+            background: var(--md-sys-color-surface-variant);
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .nav-rail-item.active {
+            background: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+            font-weight: 700;
+        }
+
+        .nav-rail-item .icon {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        .nav-rail-label {
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .nav-badge {
+            position: absolute;
+            top: 6px;
+            right: 16px;
+            background: var(--md-sys-color-error);
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        /* App Content Wrapper */
+        .app-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            height: 56px;
+            background: var(--md-sys-color-surface);
+            border-bottom: 1px solid var(--md-sys-color-outline);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            padding: 0 24px;
+            flex-shrink: 0;
         }
 
-        .brand-area {
+        .top-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--md-sys-color-on-surface);
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
-        .brand-logo {
-            font-size: 20px;
-            font-weight: 800;
-            color: var(--primary-dark);
-            letter-spacing: -0.5px;
-        }
-
-        .badge-ip {
-            font-size: 11px;
-            background: #f1f5f9;
-            color: #475569;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-weight: 600;
-        }
-
-        .header-nav {
-            display: flex;
-            gap: 8px;
-        }
-
-        .nav-btn {
-            background: transparent;
-            border: 1px solid transparent;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            color: var(--text-muted);
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .nav-btn:hover {
-            background: #f1f5f9;
-            color: var(--text-main);
-        }
-
-        .nav-btn.active {
-            background: var(--primary-light);
-            color: var(--primary-dark);
-            border-color: #bfdbfe;
-        }
-
-        .conn-pill {
+        .top-status-badge {
             display: flex;
             align-items: center;
             gap: 6px;
             font-size: 12px;
             font-weight: 500;
             padding: 4px 10px;
-            border-radius: 20px;
-            background: #ecfdf5;
-            color: var(--success);
-            border: 1px solid #a7f3d0;
+            border-radius: 16px;
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #86efac;
         }
 
-        .conn-dot {
+        .pulse-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: var(--success);
+            background: #16a34a;
         }
 
-        /* Main layout */
-        main {
-            max-width: 1480px;
-            margin: 20px auto;
-            padding: 0 20px;
-            width: 100%;
+        /* Content Area */
+        .screen-container {
             flex: 1;
+            overflow-y: auto;
+            padding: 16px 24px;
         }
 
-        .grid-2col {
-            display: grid;
-            grid-template-columns: 1fr 480px;
-            gap: 20px;
-            align-items: start;
-        }
-
-        /* Cards */
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-            margin-bottom: 18px;
-        }
-
-        .card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+        /* Cards & Surfaces (M3 style) */
+        .m3-card {
+            background: var(--md-sys-color-surface);
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 16px;
+            padding: 16px;
             margin-bottom: 16px;
-            border-bottom: 1px solid #f1f5f9;
-            padding-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
         }
 
-        .card-title {
+        .m3-card-title {
             font-size: 15px;
             font-weight: 700;
-            color: var(--text-main);
+            color: var(--md-sys-color-on-surface);
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -172,76 +220,51 @@
 
         /* Form elements */
         .form-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            display: flex;
             gap: 12px;
             margin-bottom: 12px;
+            flex-wrap: wrap;
         }
 
         .form-group {
+            flex: 1;
+            min-width: 160px;
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
 
-        label {
+        .form-label {
             font-size: 12px;
             font-weight: 600;
-            color: var(--text-muted);
+            color: var(--md-sys-color-on-surface-variant);
         }
 
         input[type="text"], input[type="number"], select, textarea {
-            padding: 8px 12px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
+            padding: 9px 12px;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 8px;
             font-size: 13px;
             outline: none;
-            background: #ffffff;
-            transition: border-color 0.2s;
+            background: white;
+            color: var(--md-sys-color-on-surface);
+            transition: all 0.2s;
             width: 100%;
         }
 
         input:focus, select:focus, textarea:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
-        }
-
-        .chip-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-top: 6px;
-        }
-
-        .chip {
-            padding: 5px 10px;
-            border-radius: 6px;
-            background: #f1f5f9;
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
-            border: 1px solid #e2e8f0;
-            transition: all 0.15s;
-        }
-
-        .chip:hover {
-            background: #e2e8f0;
-        }
-
-        .chip.selected {
-            background: var(--primary);
-            color: #ffffff;
-            border-color: var(--primary-dark);
+            border-color: var(--md-sys-color-primary);
+            box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.15);
         }
 
         /* Buttons */
-        .btn {
+        .m3-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            padding: 9px 16px;
-            border-radius: 6px;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 10px;
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
@@ -249,124 +272,123 @@
             transition: all 0.2s;
         }
 
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: var(--primary-dark); }
-        .btn-success { background: var(--success); color: white; }
-        .btn-success:hover { background: #15803d; }
-        .btn-secondary { background: #e2e8f0; color: #334155; }
-        .btn-secondary:hover { background: #cbd5e1; }
-        .btn-danger { background: #fee2e2; color: var(--danger); border: 1px solid #fca5a5; }
-        .btn-danger:hover { background: #fecaca; }
-        .btn-block { width: 100%; }
+        .m3-btn-primary { background: var(--md-sys-color-primary); color: white; }
+        .m3-btn-primary:hover { background: #1565c0; }
+        .m3-btn-tonal { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
+        .m3-btn-tonal:hover { background: #bfdbfe; }
+        .m3-btn-outlined { background: transparent; border: 1px solid var(--md-sys-color-outline); color: var(--md-sys-color-on-surface); }
+        .m3-btn-outlined:hover { background: var(--md-sys-color-surface-variant); }
+        .m3-btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+        .m3-btn-danger:hover { background: #fecaca; }
+        .m3-btn-success { background: #16a34a; color: white; }
+        .m3-btn-success:hover { background: #15803d; }
 
-        /* Estimate Side Summary */
-        .estimate-panel {
-            position: sticky;
-            top: 75px;
+        /* Calculator Layout */
+        .calc-grid {
+            display: grid;
+            grid-template-columns: 1fr 440px;
+            gap: 20px;
+            align-items: start;
         }
 
-        .estimate-items-list {
-            max-height: 380px;
-            overflow-y: auto;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            margin-bottom: 14px;
-        }
-
-        .estimate-item-row {
+        .calc-action-bar {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 8px 12px;
-            border-bottom: 1px solid #f1f5f9;
-            font-size: 13px;
+            gap: 10px;
+            margin-bottom: 16px;
         }
 
-        .estimate-item-row:last-child {
-            border-bottom: none;
-        }
-
-        .estimate-item-name {
-            font-weight: 600;
-            color: var(--text-main);
-        }
-
-        .estimate-item-meta {
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-
-        .estimate-item-price {
-            font-weight: 700;
-            color: #1e293b;
-            white-space: nowrap;
-        }
-
-        .remove-item-btn {
-            background: none;
-            border: none;
-            color: #94a3b8;
-            cursor: pointer;
-            font-size: 16px;
-            margin-left: 8px;
-        }
-
-        .remove-item-btn:hover { color: var(--danger); }
-
-        .summary-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 6px 0;
-            font-size: 13px;
-        }
-
-        .summary-total {
-            font-size: 18px;
-            font-weight: 800;
-            color: var(--primary-dark);
-            border-top: 2px solid var(--border);
-            margin-top: 8px;
-            padding-top: 10px;
-        }
-
-        /* Orders list view */
-        .orders-table {
+        .estimate-table {
             width: 100%;
             border-collapse: collapse;
         }
 
-        .orders-table th, .orders-table td {
-            padding: 12px 14px;
-            border-bottom: 1px solid var(--border);
+        .estimate-table th, .estimate-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--md-sys-color-outline);
             font-size: 13px;
             text-align: left;
         }
 
-        .orders-table th {
-            background: #f8fafc;
-            color: #475569;
+        .estimate-table th {
+            background: var(--md-sys-color-surface-variant);
+            color: var(--md-sys-color-on-surface-variant);
             font-weight: 600;
         }
 
-        .orders-table tr:hover {
-            background: #f1f5f9;
+        /* Order Summary Card */
+        .order-summary-card {
+            position: sticky;
+            top: 0;
+            background: white;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .summary-line {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 13px;
+        }
+
+        .summary-total-line {
+            font-size: 19px;
+            font-weight: 800;
+            color: var(--md-sys-color-primary);
+            border-top: 2px solid var(--md-sys-color-outline);
+            padding-top: 10px;
+            margin-top: 8px;
+        }
+
+        /* Chips */
+        .chip {
+            padding: 6px 12px;
+            border-radius: 8px;
+            background: var(--md-sys-color-surface-variant);
+            font-size: 12px;
+            font-weight: 600;
             cursor: pointer;
+            border: 1px solid var(--md-sys-color-outline);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
 
-        .status-tag {
-            font-size: 11px;
+        .chip.selected {
+            background: var(--md-sys-color-primary);
+            color: white;
+            border-color: #1565c0;
+        }
+
+        /* Tabs inside Screens */
+        .tabs-header {
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid var(--md-sys-color-outline);
+            margin-bottom: 16px;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            font-size: 13px;
             font-weight: 600;
-            padding: 3px 8px;
-            border-radius: 12px;
-            display: inline-block;
+            color: var(--md-sys-color-on-surface-variant);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
         }
 
-        .status-work { background: #fff7ed; color: #c2410c; }
-        .status-ready { background: #ecfdf5; color: #047857; }
-        .status-done { background: #eff6ff; color: #1d4ed8; }
+        .tab-btn.active {
+            color: var(--md-sys-color-primary);
+            border-bottom-color: var(--md-sys-color-primary);
+        }
 
-        /* Modal */
+        /* Dialogs / Modals */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -375,415 +397,317 @@
             align-items: center;
             justify-content: center;
             z-index: 1000;
-            padding: 20px;
-        }
-
-        .modal-body {
-            background: white;
-            border-radius: 10px;
-            max-width: 700px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
             padding: 24px;
         }
 
-        /* PRINT STYLES */
-        #printArea {
-            display: none;
+        .modal-card {
+            background: white;
+            border-radius: 18px;
+            max-width: 820px;
+            width: 100%;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
         }
 
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--md-sys-color-outline);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--md-sys-color-outline);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            background: #fafafa;
+        }
+
+        /* PRINT MEDIA STYLES (Identical to DocxGenerator.kt A4) */
+        #printArea { display: none; }
         @media print {
-            body * { visibility: hidden; }
-            #printArea, #printArea * { visibility: visible; }
+            body * { visibility: hidden !important; }
+            #printArea, #printArea * { visibility: visible !important; }
             #printArea {
-                display: block;
+                display: block !important;
                 position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
+                left: 0; top: 0; width: 100%;
                 background: white;
             }
         }
     </style>
 </head>
 <body>
-    <div id="app">
-        <!-- HEADER -->
-        <header>
-            <div class="brand-area">
-                <div class="brand-logo">ДВА АНГЕЛА</div>
-                <div class="badge-ip">ИП Ступак О.О • Павильон 35</div>
+    <div id="app" style="display:flex; width:100%; height:100vh;">
+        <!-- 1. NAVIGATION RAIL (Exact 1:1 match to Android NavigationRail) -->
+        <nav class="nav-rail">
+            <div class="nav-rail-brand">
+                <div class="nav-rail-logo">
+                    <span class="icon">church</span>
+                </div>
             </div>
 
-            <nav class="header-nav">
-                <button class="nav-btn" :class="{active: activeTab === 'calc'}" @click="activeTab = 'calc'">
-                    🧮 Калькулятор сметы
-                </button>
-                <button class="nav-btn" :class="{active: activeTab === 'orders'}" @click="activeTab = 'orders'">
-                    📋 Журнал заказов ({{ orders.length }})
-                </button>
-                <button class="nav-btn" :class="{active: activeTab === 'prices'}" @click="activeTab = 'prices'">
-                    💰 Прайс-лист и тарифы
-                </button>
-            </nav>
+            <!-- Item 1: Calculator -->
+            <button class="nav-rail-item" :class="{active: currentScreen === 'CALCULATOR'}" @click="currentScreen = 'CALCULATOR'">
+                <span class="icon">calculate</span>
+                <span class="nav-rail-label">Калькулятор</span>
+                <span v-if="estimateItems.length > 0" class="nav-badge">{{ estimateItems.length }}</span>
+            </button>
 
-            <div class="conn-pill">
-                <div class="conn-dot"></div>
-                <span>{{ syncStatusText }}</span>
-            </div>
-        </header>
+            <!-- Item 2: Prices -->
+            <button class="nav-rail-item" :class="{active: currentScreen === 'PRICE_SETTINGS'}" @click="currentScreen = 'PRICE_SETTINGS'">
+                <span class="icon">price_change</span>
+                <span class="nav-rail-label">Расценки</span>
+            </button>
 
-        <!-- MAIN CONTENT -->
-        <main>
-            <!-- TAB 1: CALCULATOR & ORDER CREATION -->
-            <div v-if="activeTab === 'calc'" class="grid-2col">
-                <!-- Left: Order Builder Steps -->
-                <div>
-                    <!-- Step 1: Customer Details -->
-                    <div class="card">
-                        <div class="card-header">
-                            <span class="card-title">👤 1. Данные клиента и покойного</span>
-                            <span style="font-size: 12px; color: var(--text-muted);">Заказ № {{ orderForm.orderNumber }}</span>
+            <!-- Item 3: Orders History -->
+            <button class="nav-rail-item" :class="{active: currentScreen === 'SAVED_ORDERS'}" @click="currentScreen = 'SAVED_ORDERS'">
+                <span class="icon">receipt_long</span>
+                <span class="nav-rail-label">Сметы</span>
+                <span v-if="orders.length > 0" class="nav-badge" style="background:#2563eb;">{{ orders.length }}</span>
+            </button>
+
+            <!-- Item 4: Cloud Settings -->
+            <button class="nav-rail-item" :class="{active: currentScreen === 'CLOUD_SETTINGS'}" @click="currentScreen = 'CLOUD_SETTINGS'">
+                <span class="icon">cloud_sync</span>
+                <span class="nav-rail-label">Облако</span>
+            </button>
+        </nav>
+
+        <!-- 2. MAIN APP CONTENT -->
+        <div class="app-body">
+            <!-- TOP APP BAR -->
+            <header class="top-bar">
+                <div class="top-title">
+                    <span style="color:var(--md-sys-color-primary);">ДВА АНГЕЛА</span>
+                    <span style="font-size:12px; font-weight:normal; color:#64748b;">• Ольшаны рынок БРОДОК павильон 35</span>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <!-- Exchange rate pill -->
+                    <div class="chip" style="cursor:default; background:#f1f5f9;">
+                        <span class="icon" style="font-size:16px; color:#2563eb;">currency_exchange</span>
+                        <span>$ = {{ prices.usd_exchange_rate.toFixed(2) }}</span>
+                    </div>
+
+                    <!-- Cloud status pill -->
+                    <div class="top-status-badge">
+                        <div class="pulse-dot"></div>
+                        <span>{{ syncStatus }}</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- SCREEN 1: CALCULATOR (1:1 with CalculatorScreen.kt) -->
+            <div v-show="currentScreen === 'CALCULATOR'" class="screen-container">
+                <!-- Client Details Header Card -->
+                <div class="m3-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="font-size:16px; font-weight:700; color:var(--md-sys-color-primary);">
+                                Заказ {{ orderForm.orderNumber }}
+                            </div>
+                            <div style="font-size:12px; color:#64748b; margin-top:2px;">
+                                {{ orderForm.clientName ? orderForm.clientName + (orderForm.clientPhone ? ' (' + orderForm.clientPhone + ')' : '') : 'Данные клиента не заполнены' }}
+                            </div>
                         </div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="m3-btn m3-btn-outlined" style="padding:6px 12px;" @click="showClientForm = !showClientForm">
+                                <span class="icon">{{ showClientForm ? 'expand_less' : 'person' }}</span>
+                                {{ showClientForm ? 'Скрыть данные' : 'Данные клиента' }}
+                            </button>
+                            <button v-if="estimateItems.length > 0" class="m3-btn m3-btn-danger" style="padding:6px 12px;" @click="clearEstimate">
+                                <span class="icon">delete_sweep</span>
+                                Очистить
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Expandable Client Details Form -->
+                    <div v-show="showClientForm" style="margin-top:14px; padding-top:14px; border-top:1px solid #e2e8f0;">
                         <div class="form-row">
                             <div class="form-group">
-                                <label>ФИО Заказчика *</label>
+                                <label class="form-label">ФИО Заказчика</label>
                                 <input type="text" v-model="orderForm.clientName" placeholder="Иванов Иван Иванович">
                             </div>
                             <div class="form-group">
-                                <label>Телефон *</label>
-                                <input type="text" v-model="orderForm.clientPhone" placeholder="+375 29 000-00-00">
+                                <label class="form-label">Телефон</label>
+                                <input type="text" v-model="orderForm.clientPhone" placeholder="+375 29 123-45-67">
                             </div>
                             <div class="form-group">
-                                <label>Срок сдачи / Дата</label>
+                                <label class="form-label">Срок сдачи / Дата</label>
                                 <input type="text" v-model="orderForm.deadline" placeholder="к 1 мая / Радоница">
                             </div>
                         </div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label>ФИО Усопшего</label>
+                                <label class="form-label">ФИО Усопшего</label>
                                 <input type="text" v-model="orderForm.deceasedName" placeholder="Петров Петр Петрович">
                             </div>
                             <div class="form-group">
-                                <label>Даты жизни</label>
-                                <input type="text" v-model="orderForm.datesText" placeholder="01.01.1950 — 15.08.2023">
+                                <label class="form-label">Дата рождения</label>
+                                <input type="text" v-model="orderForm.deceasedBirthDate" placeholder="01.01.1950">
                             </div>
                             <div class="form-group">
-                                <label>Кладбище / Место</label>
-                                <input type="text" v-model="orderForm.cemeteryName" placeholder="Ольшаны, центральное, уч. 14">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 2: Monument / Obelisk -->
-                    <div class="card">
-                        <div class="card-header">
-                            <span class="card-title">🪦 2. Стела (Обелиск)</span>
-                        </div>
-                        <div class="form-group" style="margin-bottom: 12px;">
-                            <label>Популярные размеры:</label>
-                            <div class="chip-group">
-                                <span class="chip" 
-                                      v-for="p in sizePresets" 
-                                      :class="{selected: monument.height === p.h && monument.width === p.w && monument.thickness === p.t}"
-                                      @click="setPreset(p)">
-                                    {{ p.label }}
-                                </span>
+                                <label class="form-label">Дата смерти</label>
+                                <input type="text" v-model="orderForm.deceasedDeathDate" placeholder="15.08.2023">
                             </div>
                         </div>
                         <div class="form-row">
-                            <div class="form-group">
-                                <label>Высота (см)</label>
-                                <input type="number" v-model.number="monument.height">
+                            <div class="form-group" style="flex:1.5;">
+                                <label class="form-label">Кладбище</label>
+                                <input type="text" v-model="orderForm.cemeteryName" placeholder="Ольшаны центральное">
                             </div>
                             <div class="form-group">
-                                <label>Ширина (см)</label>
-                                <input type="number" v-model.number="monument.width">
-                            </div>
-                            <div class="form-group">
-                                <label>Толщина (см)</label>
-                                <input type="number" v-model.number="monument.thickness">
-                            </div>
-                            <div class="form-group">
-                                <label>Материал</label>
-                                <select v-model="monument.material">
-                                    <option v-for="m in stoneMaterials" :value="m.name">{{ m.name }}</option>
-                                </select>
+                                <label class="form-label">Участок / Ряд</label>
+                                <input type="text" v-model="orderForm.plotNumber" placeholder="уч. 12, ряд 4">
                             </div>
                         </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Полировка</label>
-                                <select v-model="monument.polish">
-                                    <option value="Круговая (со всех сторон)">Круговая (со всех сторон)</option>
-                                    <option value="Лицевая + бока">Лицевая + бока</option>
-                                    <option value="Только лицевая">Только лицевая</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Форма / Фигурная резка</label>
-                                <select v-model="monument.shape">
-                                    <option value="Прямой (стандарт)">Прямой (стандарт)</option>
-                                    <option value="Волна / Плечики (+60 BYN)">Волна / Плечики (+60 BYN)</option>
-                                    <option value="Сложная резка с крестом (+120 BYN)">Сложная резка с крестом (+120 BYN)</option>
-                                    <option value="Скорбящая / Дерево (+250 BYN)">Скорбящая / Дерево (+250 BYN)</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="align-self: flex-end;">
-                                <button class="btn btn-secondary btn-block" @click="addMonumentToEstimate">
-                                    ➕ Добавить стелу в смету
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 3: Tumba & Cvetnik -->
-                    <div class="card">
-                        <div class="card-header">
-                            <span class="card-title">🧱 3. Подставка (Тумба) и Цветник / Плита</span>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Подставка (Тумба)</label>
-                                <select v-model="tumbaType">
-                                    <option value="none">Без тумбы</option>
-                                    <option value="standard">Тумба 60×20×15 (Габбро) — 150 BYN</option>
-                                    <option value="large">Тумба 70×20×20 (Габбро) — 200 BYN</option>
-                                    <option value="double">Тумба 120×20×20 (двойная) — 320 BYN</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="align-self: flex-end;">
-                                <button class="btn btn-secondary btn-block" @click="addTumbaToEstimate" :disabled="tumbaType === 'none'">
-                                    ➕ Добавить тумбу
-                                </button>
-                            </div>
-                        </div>
-                        <div class="form-row" style="margin-top: 10px;">
-                            <div class="form-group">
-                                <label>Цветник / Плита</label>
-                                <select v-model="cvetnikType">
-                                    <option value="none">Без цветника</option>
-                                    <option value="standard">Цветник стандартный 100×50×8 — 180 BYN</option>
-                                    <option value="semi">Цветник полузакрытый — 260 BYN</option>
-                                    <option value="full_plate">Глухая надгробная плита 100×50×5 — 380 BYN</option>
-                                    <option value="double_cvetnik">Цветник двойной 100×110 — 320 BYN</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="align-self: flex-end;">
-                                <button class="btn btn-secondary btn-block" @click="addCvetnikToEstimate" :disabled="cvetnikType === 'none'">
-                                    ➕ Добавить цветник / плиту
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 4: Engraving, Photo & Texts -->
-                    <div class="card">
-                        <div class="card-header">
-                            <span class="card-title">🎨 4. Художественное оформление (Гравировка и Портрет)</span>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Портрет / Фото</label>
-                                <select v-model="photoType">
-                                    <option value="none">Без портрета</option>
-                                    <option value="engraving">Гравировка портрета станочная — 120 BYN</option>
-                                    <option value="engraving_hand">Гравировка портрета ручная — 160 BYN</option>
-                                    <option value="ceram_13x18">Фотокерамика 13×18 см — 120 BYN</option>
-                                    <option value="ceram_18x24">Фотокерамика 18×24 см — 160 BYN</option>
-                                    <option value="glass_20x30">Фото на стекле триплекс 20×30 см — 360 BYN</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Рамка / Врезка для фото</label>
-                                <select v-model="frameType">
-                                    <option value="none">Без рамки</option>
-                                    <option value="vrezka">Врезка медальона в гранит — 40 BYN</option>
-                                    <option value="bronze">Бронзовая рамка Caggiati — 140 BYN</option>
-                                    <option value="engraved">Гравированная рамка виньетка — 30 BYN</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="align-self: flex-end;">
-                                <button class="btn btn-secondary btn-block" @click="addPhotoToEstimate" :disabled="photoType === 'none'">
-                                    ➕ Добавить портрет
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="form-row" style="margin-top: 10px;">
-                            <div class="form-group">
-                                <label>Крест (гравировка)</label>
-                                <select v-model="crossType">
-                                    <option value="none">Без креста</option>
-                                    <option value="cross_orth">Крест православный 8-кон. — 35 BYN</option>
-                                    <option value="cross_cath">Крест католический 4-кон. — 35 BYN</option>
-                                    <option value="cross_rel">Крест резной с распятием — 55 BYN</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Цветы / Свеча / Икона</label>
-                                <select v-model="decorType">
-                                    <option value="none">Без декора</option>
-                                    <option value="rose_2">Две розы у подножия — 35 BYN</option>
-                                    <option value="candle">Горящая свеча с розами — 35 BYN</option>
-                                    <option value="angel">Молящийся ангел — 55 BYN</option>
-                                    <option value="military">Военная звезда / орден — 40 BYN</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="align-self: flex-end;">
-                                <button class="btn btn-secondary btn-block" @click="addDecorToEstimate" :disabled="crossType === 'none' && decorType === 'none'">
-                                    ➕ Добавить рисунки
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="form-row" style="margin-top: 10px;">
-                            <div class="form-group" style="grid-column: span 2;">
-                                <label>Текст ФИО и дат для подсчета знаков:</label>
-                                <input type="text" v-model="lettersInput" placeholder="Иванов Иван Иванович 1950 — 2024" @input="calcLetters">
-                            </div>
-                            <div class="form-group">
-                                <label>Количество знаков: {{ letterCount }}</label>
-                                <button class="btn btn-secondary btn-block" @click="addLettersToEstimate" :disabled="letterCount === 0">
-                                    ➕ Добавить надпись ({{ (letterCount * prices.letter_standard).toFixed(2) }} BYN)
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 5: Installation, Works & Accessories -->
-                    <div class="card">
-                        <div class="card-header">
-                            <span class="card-title">⚒️ 5. Установка, Благоустройство и Аксессуары</span>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Монтажные работы:</label>
-                                <div style="display:flex; flex-direction:column; gap:6px; margin-top:4px;">
-                                    <label style="font-weight:normal; cursor:pointer;">
-                                        <input type="checkbox" v-model="works.install"> Установка комплекта памятника ({{ prices.installation_base_price }} BYN)
-                                    </label>
-                                    <label style="font-weight:normal; cursor:pointer;">
-                                        <input type="checkbox" v-model="works.demontazh"> Демонтаж старого памятника ({{ prices.demontazh_base_price }} BYN)
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label>Укладка плитки (м²)</label>
-                                <div style="display:flex; gap:8px;">
-                                    <input type="number" v-model.number="works.tileSqm" placeholder="м²" style="width: 80px;">
-                                    <button class="btn btn-secondary" @click="addTileToEstimate" :disabled="!works.tileSqm">
-                                        Добавить плитку
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label>Аксессуары:</label>
-                                <select v-model="accessoryType">
-                                    <option value="none">Выберите аксессуар</option>
-                                    <option value="vase_25">Ваза гранитная 25 см — 110 BYN</option>
-                                    <option value="vase_30">Ваза гранитная 30 см — 140 BYN</option>
-                                    <option value="lampada">Лампада гранитная — 130 BYN</option>
-                                    <option value="bench">Скамья кованая — 160 BYN</option>
-                                    <option value="table">Столик кованый — 140 BYN</option>
-                                </select>
-                                <button class="btn btn-secondary" style="margin-top:6px;" @click="addAccessoryToEstimate" :disabled="accessoryType === 'none'">
-                                    ➕ Добавить аксессуар
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 6: Custom Item -->
-                    <div class="card">
-                        <div class="card-header">
-                            <span class="card-title">➕ Произвольная позиция вручную</span>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group" style="grid-column: span 2;">
-                                <label>Название услуги или товара</label>
-                                <input type="text" v-model="customItem.name" placeholder="Например: Дополнительная надпись на обратной стороне">
-                            </div>
-                            <div class="form-group">
-                                <label>Цена (BYN)</label>
-                                <input type="number" v-model.number="customItem.price">
-                            </div>
-                            <div class="form-group">
-                                <label>Кол-во</label>
-                                <input type="number" v-model.number="customItem.qty">
-                            </div>
-                            <div class="form-group" style="align-self: flex-end;">
-                                <button class="btn btn-secondary btn-block" @click="addCustomItemToEstimate">
-                                    Добавить в чек
-                                </button>
-                            </div>
+                        <div class="form-group">
+                            <label class="form-label">Примечание к заказу</label>
+                            <input type="text" v-model="orderForm.notes" placeholder="Дополнительные пожелания заказчика">
                         </div>
                     </div>
                 </div>
 
-                <!-- Right: Estimate Side Summary & Direct Printing -->
-                <div class="estimate-panel">
-                    <div class="card" style="border-top: 4px solid var(--primary);">
-                        <div class="card-header">
-                            <span class="card-title">🧾 Смета заказа № {{ orderForm.orderNumber }}</span>
-                            <span style="font-size:12px; font-weight:600; color:var(--primary-dark);">
-                                {{ estimateItems.length }} поз.
-                            </span>
+                <!-- 4 Action Buttons (1:1 with CalculatorScreen.kt buttons) -->
+                <div class="calc-action-bar">
+                    <button class="m3-btn m3-btn-primary" style="flex:1.5;" @click="showMonumentModal = true">
+                        <span class="icon">landscape</span>
+                        Конструктор памятника (камни, размеры, резка)
+                    </button>
+                    <button class="m3-btn m3-btn-tonal" style="flex:1;" @click="showCatalogModal = true">
+                        <span class="icon">add_shopping_cart</span>
+                        Каталог расценок
+                    </button>
+                    <button class="m3-btn m3-btn-outlined" style="flex:1;" @click="showDimensionsModal = true">
+                        <span class="icon">straighten</span>
+                        Замеры и расчёты
+                    </button>
+                    <button class="m3-btn m3-btn-outlined" style="flex:0.8;" @click="showCustomItemModal = true">
+                        <span class="icon">add</span>
+                        Своя позиция
+                    </button>
+                </div>
+
+                <!-- 2-Column Calculator Content Grid -->
+                <div class="calc-grid">
+                    <!-- Left Column: Items Table in Estimate -->
+                    <div class="m3-card" style="padding:0; overflow:hidden;">
+                        <div style="padding:14px 16px; background:#f8fafc; border-bottom:1px solid #e2e8f0; font-weight:700; font-size:14px; display:flex; justify-content:space-between;">
+                            <span>Состав сметы</span>
+                            <span style="color:#2563eb;">{{ estimateItems.length }} позиций</span>
                         </div>
 
-                        <!-- Items list -->
-                        <div class="estimate-items-list">
-                            <div v-if="estimateItems.length === 0" style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">
-                                В смете пока нет позиций.<br>Выберите параметры памятника слева.
-                            </div>
-                            <div v-for="(item, idx) in estimateItems" :key="idx" class="estimate-item-row">
-                                <div style="flex:1;">
-                                    <div class="estimate-item-name">{{ item.name }}</div>
-                                    <div class="estimate-item-meta">{{ item.quantity }} шт. × {{ item.price.toFixed(2) }} BYN</div>
-                                </div>
-                                <div class="estimate-item-price">{{ (item.price * item.quantity).toFixed(2) }} BYN</div>
-                                <button class="remove-item-btn" @click="removeItem(idx)" title="Удалить">✕</button>
-                            </div>
+                        <div v-if="estimateItems.length === 0" style="padding:48px 20px; text-align:center; color:#94a3b8;">
+                            <span class="icon" style="font-size:48px; opacity:0.5; margin-bottom:8px;">receipt_long</span>
+                            <p style="font-weight:600;">В смете пока нет позиций</p>
+                            <p style="font-size:12px; margin-top:4px;">Нажмите «Конструктор памятника» или выберите позицию из «Каталога расценок»</p>
                         </div>
 
-                        <!-- Financial calculations -->
-                        <div class="summary-row">
-                            <span>Промежуточный итог:</span>
+                        <table v-else class="estimate-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:30px;">№</th>
+                                    <th>Наименование</th>
+                                    <th style="width:70px; text-align:center;">Кол-во</th>
+                                    <th style="width:90px; text-align:right;">Цена</th>
+                                    <th style="width:100px; text-align:right;">Сумма</th>
+                                    <th style="width:40px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(it, idx) in estimateItems" :key="idx">
+                                    <td style="color:#64748b;">{{ idx + 1 }}</td>
+                                    <td>
+                                        <strong>{{ it.name }}</strong>
+                                        <div v-if="it.customNote" style="font-size:11px; color:#64748b; margin-top:2px;">{{ it.customNote }}</div>
+                                    </td>
+                                    <td style="text-align:center;">
+                                        <input type="number" min="1" v-model.number="it.quantity" style="width:50px; text-align:center; padding:3px 4px;">
+                                    </td>
+                                    <td style="text-align:right;">
+                                        <input type="number" min="0" step="0.5" v-model.number="it.price" style="width:75px; text-align:right; padding:3px 4px;">
+                                    </td>
+                                    <td style="text-align:right; font-weight:700;">
+                                        {{ (it.price * it.quantity).toFixed(2) }}
+                                    </td>
+                                    <td style="text-align:center;">
+                                        <button style="border:none; background:none; color:#dc2626; cursor:pointer;" @click="removeItem(idx)">
+                                            <span class="icon" style="font-size:18px;">close</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Right Column: Financial Summary Panel (1:1 with Calculator bottom sheet) -->
+                    <div class="order-summary-card">
+                        <div class="m3-card-title">
+                            <span class="icon" style="color:var(--md-sys-color-primary);">payments</span>
+                            Итоги расчета
+                        </div>
+
+                        <div class="summary-line">
+                            <span style="color:#64748b;">Позиций в смете:</span>
+                            <strong>{{ estimateItems.length }} шт.</strong>
+                        </div>
+                        <div class="summary-line">
+                            <span style="color:#64748b;">Сумма по прайсу:</span>
                             <strong>{{ subtotalAmount.toFixed(2) }} BYN</strong>
                         </div>
-                        <div class="summary-row">
-                            <span>Скидка (BYN):</span>
-                            <input type="number" v-model.number="discountAmount" style="width: 100px; text-align: right; padding: 4px 8px;">
+
+                        <div class="summary-line" style="align-items:center;">
+                            <span style="color:#64748b;">Скидка (BYN):</span>
+                            <input type="number" min="0" v-model.number="discountAmount" style="width:110px; text-align:right; padding:4px 8px;">
                         </div>
-                        <div class="summary-row summary-total">
+
+                        <div class="summary-line summary-total-line">
                             <span>ИТОГО К ОПЛАТЕ:</span>
                             <span>{{ totalAmount.toFixed(2) }} BYN</span>
                         </div>
-                        <div class="summary-row" style="font-size: 12px; color: var(--text-muted);">
-                            <span>В долларах (~{{ (totalAmount / prices.usd_exchange_rate).toFixed(0) }} $):</span>
-                            <span>курс {{ prices.usd_exchange_rate }}</span>
+
+                        <div class="summary-line" style="font-size:12px; color:#64748b;">
+                            <span>В долларах США:</span>
+                            <strong>~{{ (totalAmount / prices.usd_exchange_rate).toFixed(0) }} $</strong>
                         </div>
-                        <div class="summary-row" style="margin-top: 6px;">
-                            <span>Предоплата (Аванс):</span>
-                            <input type="number" v-model.number="prepaymentAmount" style="width: 100px; text-align: right; padding: 4px 8px;">
+
+                        <div class="summary-line" style="align-items:center; margin-top:8px;">
+                            <span style="color:#64748b;">Предоплата (Аванс):</span>
+                            <input type="number" min="0" v-model.number="prepaymentAmount" style="width:110px; text-align:right; padding:4px 8px;">
                         </div>
-                        <div class="summary-row" style="font-weight: 700; color: var(--danger);">
-                            <span>Остаток платежа:</span>
+
+                        <div class="summary-line" style="font-weight:700; color:#dc2626; font-size:15px; margin-top:4px;">
+                            <span>Остаток долга:</span>
                             <span>{{ remainingAmount.toFixed(2) }} BYN</span>
                         </div>
 
-                        <!-- Action buttons: Save & Instant Print -->
-                        <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
-                            <button class="btn btn-success btn-block" @click="saveOrderToFirebase" :disabled="estimateItems.length === 0">
-                                💾 Сохранить заказ в облачную базу
+                        <div style="display:flex; flex-direction:column; gap:10px; margin-top:20px;">
+                            <button class="m3-btn m3-btn-success" @click="saveOrderToFirebase" :disabled="estimateItems.length === 0">
+                                <span class="icon">cloud_upload</span>
+                                Сохранить смету в базу
                             </button>
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-                                <button class="btn btn-primary" @click="printCurrentEstimate" :disabled="estimateItems.length === 0">
-                                    🖨️ Договор (А4)
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                                <button class="m3-btn m3-btn-primary" @click="printEstimateA4" :disabled="estimateItems.length === 0">
+                                    <span class="icon">print</span>
+                                    Договор (А4)
                                 </button>
-                                <button class="btn btn-secondary" @click="printCurrentFactoryOrder" :disabled="estimateItems.length === 0">
-                                    🏭 Наряд цеха (А4)
+                                <button class="m3-btn m3-btn-outlined" @click="printFactoryOrderA4" :disabled="estimateItems.length === 0">
+                                    <span class="icon">factory</span>
+                                    Заказ цеха (А4)
                                 </button>
                             </div>
                         </div>
@@ -791,377 +715,805 @@
                 </div>
             </div>
 
-            <!-- TAB 2: ORDERS JOURNAL (Live from Firebase) -->
-            <div v-if="activeTab === 'orders'" class="card">
-                <div class="card-header">
-                    <span class="card-title">📋 Журнал оформленных заказов</span>
-                    <input type="text" v-model="ordersSearch" placeholder="🔍 Поиск по ФИО, номеру, телефону..." style="max-width: 320px;">
+            <!-- SCREEN 2: PRICE SETTINGS (1:1 with PriceSettingsScreen.kt) -->
+            <div v-show="currentScreen === 'PRICE_SETTINGS'" class="screen-container">
+                <div class="tabs-header">
+                    <button class="tab-btn" :class="{active: priceTab === 0}" @click="priceTab = 0">Каталог</button>
+                    <button class="tab-btn" :class="{active: priceTab === 1}" @click="priceTab = 1">Камни</button>
+                    <button class="tab-btn" :class="{active: priceTab === 2}" @click="priceTab = 2">Замеры</button>
+                    <button class="tab-btn" :class="{active: priceTab === 3}" @click="priceTab = 3">Шрифты</button>
+                    <button class="tab-btn" :class="{active: priceTab === 4}" @click="priceTab = 4">Рисунки</button>
+                    <button class="tab-btn" :class="{active: priceTab === 5}" @click="priceTab = 5">Фото и Рамки</button>
+                    <button class="tab-btn" :class="{active: priceTab === 6}" @click="priceTab = 6">Вазы</button>
                 </div>
 
-                <div v-if="loadingOrders" style="padding: 40px; text-align: center; color: var(--text-muted);">
-                    Синхронизация с базой данных...
+                <!-- Tab 0: General Catalog -->
+                <div v-if="priceTab === 0" class="m3-card">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:14px;">
+                        <input type="text" v-model="catalogFilter" placeholder="🔍 Поиск по каталогу..." style="max-width:320px;">
+                        <button class="m3-btn m3-btn-primary" @click="addNewPriceItem">
+                            <span class="icon">add</span> Добавить позицию
+                        </button>
+                    </div>
+                    <table class="estimate-table">
+                        <thead>
+                            <tr>
+                                <th>Категория</th>
+                                <th>Наименование</th>
+                                <th>Ед.</th>
+                                <th style="text-align:right;">Цена (BYN)</th>
+                                <th style="width:80px; text-align:center;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="it in filteredPriceItems" :key="it.id">
+                                <td><span class="chip" style="font-size:11px;">{{ it.category }}</span></td>
+                                <td><strong>{{ it.name }}</strong></td>
+                                <td>{{ it.unit }}</td>
+                                <td style="text-align:right; font-weight:700;">{{ it.currentPrice.toFixed(2) }}</td>
+                                <td style="text-align:center;">
+                                    <button class="m3-btn m3-btn-outlined" style="padding:4px 8px; font-size:11px;" @click="editPriceItem(it)">
+                                        Изменить
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
 
-                <div v-else-if="filteredOrders.length === 0" style="padding: 40px; text-align: center; color: var(--text-muted);">
-                    Нет заказов по запросу
+                <!-- Tab 1: Stone Materials -->
+                <div v-if="priceTab === 1" class="m3-card">
+                    <div class="m3-card-title">Виды камня (гранит)</div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px;">
+                        <div v-for="st in stoneMaterials" class="m3-card" style="margin:0; border:1px solid #cbd5e1;">
+                            <div style="font-weight:700; color:#1e293b;">{{ st.name }}</div>
+                            <div style="font-size:12px; color:#64748b; margin-top:4px;">{{ st.origin }} • Коэфф: ×{{ st.coefficient }}</div>
+                        </div>
+                    </div>
                 </div>
 
-                <table v-else class="orders-table">
-                    <thead>
-                        <tr>
-                            <th>№ Заказа</th>
-                            <th>Дата</th>
-                            <th>Заказчик</th>
-                            <th>Телефон</th>
-                            <th>Усопший</th>
-                            <th>Сумма (BYN)</th>
-                            <th>Аванс / Долг</th>
-                            <th>Статус</th>
-                            <th style="text-align: right;">Действия</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="ord in filteredOrders" :key="ord.id" @click="openOrderDetails(ord)">
-                            <td><strong>№ {{ ord.orderNumber || '—' }}</strong></td>
-                            <td>{{ formatDate(ord.createdAt) }}</td>
-                            <td><strong>{{ ord.clientName || 'Без имени' }}</strong></td>
-                            <td>{{ ord.clientPhone || '—' }}</td>
-                            <td>{{ ord.deceasedName || '—' }}</td>
-                            <td style="font-weight: 700; color: #15803d;">{{ (ord.totalAmount || 0).toFixed(2) }}</td>
-                            <td>{{ (ord.prepaymentAmount || 0).toFixed(2) }} / {{ (ord.remainingAmount || 0).toFixed(2) }}</td>
-                            <td>
-                                <span class="status-tag" :class="getStatusClass(ord.status)">
-                                    {{ ord.status || 'В работе' }}
-                                </span>
-                            </td>
-                            <td style="text-align: right;" @click.stop>
-                                <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" @click="printOrderDoc(ord, 'client')">
-                                    🖨️ Договор
-                                </button>
-                                <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; margin-left: 4px;" @click="printOrderDoc(ord, 'factory')">
-                                    🏭 Цех
-                                </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                <!-- Tab 2: Measurement services -->
+                <div v-if="priceTab === 2" class="m3-card">
+                    <div class="m3-card-title">Тарифы замеров и монтажа</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Установка комплекта памятника (BYN)</label>
+                            <input type="number" v-model.number="prices.installation_base_price">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Демонтаж старого (BYN)</label>
+                            <input type="number" v-model.number="prices.demontazh_base_price">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Укладка плитки за 1 м² (BYN)</label>
+                            <input type="number" v-model.number="prices.measure_tile_price_sqm">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Гравировка 1 знака ФИО (BYN)</label>
+                            <input type="number" step="0.1" v-model.number="prices.letter_standard">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Fonts -->
+                <div v-if="priceTab === 3" class="m3-card">
+                    <div class="m3-card-title">Шрифты гравировки</div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px;">
+                        <div v-for="f in fontsList" class="m3-card" style="margin:0;">
+                            <strong>{{ f.name }}</strong>
+                            <div style="font-size:12px; color:#64748b; margin-top:4px;">{{ f.sample }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 4: Drawings -->
+                <div v-if="priceTab === 4" class="m3-card">
+                    <div class="m3-card-title">Рисунки и символы (кресты, цветы, ангелы)</div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px;">
+                        <div v-for="d in drawingsList" class="m3-card" style="margin:0;">
+                            <span class="chip" style="font-size:10px; margin-bottom:4px;">{{ d.category }}</span>
+                            <div><strong>{{ d.name }}</strong></div>
+                            <div style="color:#15803d; font-weight:700; margin-top:4px;">{{ d.price }} BYN</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 5: Photos & Frames -->
+                <div v-if="priceTab === 5" class="m3-card">
+                    <div class="m3-card-title">Размеры фотокерамики и рамки</div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px;">
+                        <div v-for="p in photoList" class="m3-card" style="margin:0;">
+                            <span class="chip" style="font-size:10px;">{{ p.type }}</span>
+                            <div style="margin-top:4px;"><strong>{{ p.name }}</strong></div>
+                            <div style="color:#15803d; font-weight:700; margin-top:4px;">{{ p.price }} BYN</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 6: Vases -->
+                <div v-if="priceTab === 6" class="m3-card">
+                    <div class="m3-card-title">Вазы и аксессуары</div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px;">
+                        <div v-for="v in vasesList" class="m3-card" style="margin:0;">
+                            <strong>{{ v.name }}</strong>
+                            <div style="color:#15803d; font-weight:700; margin-top:4px;">{{ v.price }} BYN</div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- TAB 3: PRICE CATALOG & SETTINGS -->
-            <div v-if="activeTab === 'prices'" class="card">
-                <div class="card-header">
-                    <span class="card-title">💰 Базовые тарифы и настройки</span>
-                    <button class="btn btn-success" @click="savePricesToFirebase">
-                        💾 Сохранить тарифы в облако
+            <!-- SCREEN 3: SAVED ORDERS (1:1 with SavedOrdersScreen.kt) -->
+            <div v-show="currentScreen === 'SAVED_ORDERS'" class="screen-container">
+                <div class="m3-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <div style="font-weight:700; font-size:16px;">История сохраненных расчетов ({{ orders.length }})</div>
+                        <input type="text" v-model="orderSearchQuery" placeholder="🔍 Поиск по номеру, заказчику, телефону..." style="max-width:320px;">
+                    </div>
+
+                    <div v-if="filteredOrdersList.length === 0" style="padding:48px 20px; text-align:center; color:#94a3b8;">
+                        <span class="icon" style="font-size:48px; opacity:0.5; margin-bottom:8px;">receipt_long</span>
+                        <p style="font-weight:600;">Нет сохраненных смет</p>
+                    </div>
+
+                    <div v-else style="display:flex; flex-direction:column; gap:12px;">
+                        <div v-for="ord in filteredOrdersList" :key="ord.id" class="m3-card" style="margin:0; border:1px solid #cbd5e1; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <strong style="color:#1e40af; font-size:15px;">№ {{ ord.orderNumber }}</strong>
+                                    <span class="chip" style="background:#e0f2fe; color:#0369a1; font-size:11px;">{{ ord.status || 'В работе' }}</span>
+                                    <span style="font-size:12px; color:#64748b;">от {{ formatDate(ord.createdAt) }}</span>
+                                </div>
+                                <div style="margin-top:6px; font-size:13px;">
+                                    <strong>Клиент:</strong> {{ ord.clientName || 'Без имени' }} ({{ ord.clientPhone || '—' }})
+                                </div>
+                                <div v-if="ord.deceasedName" style="font-size:12px; color:#64748b; margin-top:2px;">
+                                    <strong>Усопший:</strong> {{ ord.deceasedName }} • {{ ord.cemeteryName || 'Кладбище не указано' }}
+                                </div>
+                            </div>
+
+                            <div style="display:flex; align-items:center; gap:20px;">
+                                <div style="text-align:right;">
+                                    <div style="font-size:16px; font-weight:800; color:#15803d;">{{ (ord.totalAmount || 0).toFixed(2) }} BYN</div>
+                                    <div style="font-size:11px; color:#64748b;">Аванс: {{ (ord.prepaymentAmount || 0).toFixed(2) }} / Долг: {{ (ord.remainingAmount || 0).toFixed(2) }}</div>
+                                </div>
+
+                                <div style="display:flex; gap:6px;">
+                                    <button class="m3-btn m3-btn-tonal" style="padding:6px 12px; font-size:12px;" @click="loadOrderIntoCalculator(ord)">
+                                        <span class="icon">edit</span> В калькулятор
+                                    </button>
+                                    <button class="m3-btn m3-btn-primary" style="padding:6px 12px; font-size:12px;" @click="printDoc(ord, 'estimate')">
+                                        <span class="icon">print</span> Договор
+                                    </button>
+                                    <button class="m3-btn m3-btn-outlined" style="padding:6px 12px; font-size:12px;" @click="printDoc(ord, 'factory')">
+                                        <span class="icon">factory</span> Цех
+                                    </button>
+                                    <button class="m3-btn m3-btn-danger" style="padding:6px 10px; font-size:12px;" @click="deleteOrder(ord.id)">
+                                        <span class="icon">delete</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCREEN 4: CLOUD & SETTINGS (1:1 with CloudSyncSettingsScreen.kt) -->
+            <div v-show="currentScreen === 'CLOUD_SETTINGS'" class="screen-container">
+                <div class="m3-card">
+                    <div class="m3-card-title">
+                        <span class="icon" style="color:#2563eb;">cloud_sync</span>
+                        Облачная синхронизация (Firebase)
+                    </div>
+                    <p style="font-size:13px; color:#64748b; margin-bottom:14px;">
+                        База данных <strong>dwa-angeld</strong> подключена. Все сметы синхронизируются мгновенно между этим компьютером и мобильными телефонами.
+                    </p>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Курс доллара (USD к BYN)</label>
+                            <input type="number" step="0.01" v-model.number="prices.usd_exchange_rate">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Курс евро (EUR к BYN)</label>
+                            <input type="number" step="0.01" v-model.number="prices.eur_exchange_rate">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="m3-card">
+                    <div class="m3-card-title">Реквизиты исполнителя для договоров</div>
+                    <div style="font-size:13px; line-height:1.6;">
+                        <strong>ИП Ступак О.О</strong><br>
+                        Телефоны: +375 29 542-18-09, +375 29 727-36-37<br>
+                        Адрес: Брестская обл., Столинский р-н, аг. Ольшаны, рынок БРОДОК, павильон 35
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 1: MONUMENT BUILDER (1:1 with MonumentBuilderDialog.kt) -->
+        <div v-if="showMonumentModal" class="modal-overlay" @click.self="showMonumentModal = false">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <strong style="font-size:16px;">Конструктор памятника (камни, размеры, резка)</strong>
+                    <button style="border:none; background:none; cursor:pointer;" @click="showMonumentModal = false">
+                        <span class="icon">close</span>
                     </button>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Курс доллара (USD к BYN)</label>
-                        <input type="number" step="0.01" v-model.number="prices.usd_exchange_rate">
+                <div class="modal-body">
+                    <!-- Builder Step 1: Obelisk Dimensions & Granite -->
+                    <div style="font-weight:700; margin-bottom:8px; color:#1e40af;">1. Стела (Обелиск)</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Популярные размеры:</label>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <span class="chip" 
+                                      v-for="p in monumentPresets" 
+                                      :class="{selected: mb.height === p.h && mb.width === p.w && mb.thickness === p.t}"
+                                      @click="mb.height = p.h; mb.width = p.w; mb.thickness = p.t;">
+                                    {{ p.l }}
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Гравировка 1 знака ФИО (BYN)</label>
-                        <input type="number" step="0.1" v-model.number="prices.letter_standard">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Высота (см)</label>
+                            <input type="number" v-model.number="mb.height">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Ширина (см)</label>
+                            <input type="number" v-model.number="mb.width">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Толщина (см)</label>
+                            <input type="number" v-model.number="mb.thickness">
+                        </div>
+                        <div class="form-group" style="flex:1.5;">
+                            <label class="form-label">Материал гранита</label>
+                            <select v-model="mb.material">
+                                <option v-for="st in stoneMaterials" :value="st.name">{{ st.name }}</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Базовая установка памятника (BYN)</label>
-                        <input type="number" v-model.number="prices.installation_base_price">
+
+                    <!-- Builder Step 2: Polishing & Chamfer -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Полировка</label>
+                            <select v-model="mb.polish">
+                                <option value="Круговая (со всех сторон)">Круговая (со всех сторон)</option>
+                                <option value="Лицевая + бока">Лицевая + бока</option>
+                                <option value="Только лицевая">Только лицевая</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Форма / Резка</label>
+                            <select v-model="mb.shape">
+                                <option value="Прямой (стандарт)">Прямой (стандарт)</option>
+                                <option value="Волна / Плечики (+60 BYN)">Волна / Плечики (+60 BYN)</option>
+                                <option value="Сложная резка с крестом (+120 BYN)">Сложная резка с крестом (+120 BYN)</option>
+                                <option value="Скорбящая / Дерево (+250 BYN)">Скорбящая / Дерево (+250 BYN)</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Демонтаж старого (BYN)</label>
-                        <input type="number" v-model.number="prices.demontazh_base_price">
+
+                    <!-- Builder Step 3: Tumba & Cvetnik -->
+                    <div style="font-weight:700; margin:16px 0 8px 0; color:#1e40af;">2. Подставка (Тумба) и Цветник / Плита</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Тумба (Подставка)</label>
+                            <select v-model="mb.tumba">
+                                <option value="none">Без тумбы</option>
+                                <option value="60x20x15">Тумба 60×20×15 см — 150 BYN</option>
+                                <option value="70x20x20">Тумба 70×20×20 см — 200 BYN</option>
+                                <option value="120x20x20">Тумба 120×20×20 см (двойная) — 320 BYN</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Цветник / Плита надгробная</label>
+                            <select v-model="mb.cvetnik">
+                                <option value="none">Без цветника</option>
+                                <option value="stand">Цветник открытый 100×50×8 — 180 BYN</option>
+                                <option value="semi">Цветник полузакрытый со слэбом — 260 BYN</option>
+                                <option value="full">Глухая надгробная плита 100×50×5 — 380 BYN</option>
+                                <option value="double">Цветник двойной 100×110 см — 320 BYN</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Укладка плитки за 1 м² (BYN)</label>
-                        <input type="number" v-model.number="prices.measure_tile_price_sqm">
+
+                    <!-- Builder Step 4: Engraving & Photo -->
+                    <div style="font-weight:700; margin:16px 0 8px 0; color:#1e40af;">3. Гравировка, Портрет и Оформление</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Портрет</label>
+                            <select v-model="mb.photo">
+                                <option value="none">Без портрета</option>
+                                <option value="engr_mach">Гравировка портрета станочная — 120 BYN</option>
+                                <option value="engr_hand">Гравировка портрета ручная — 160 BYN</option>
+                                <option value="ceram_13x18">Фотокерамика 13×18 см — 120 BYN</option>
+                                <option value="ceram_18x24">Фотокерамика 18×24 см — 160 BYN</option>
+                                <option value="triplex_20x30">Фото на стекле триплекс 20×30 см — 360 BYN</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Рамка / Врезка</label>
+                            <select v-model="mb.frame">
+                                <option value="none">Без рамки</option>
+                                <option value="vrezka">Врезка медальона в гранит — 40 BYN</option>
+                                <option value="bronze">Бронзовая рамка Caggiati — 140 BYN</option>
+                                <option value="engr">Гравированная рамка виньетка — 30 BYN</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Крест</label>
+                            <select v-model="mb.cross">
+                                <option value="none">Без креста</option>
+                                <option value="orth">Крест православный 8-кон. — 35 BYN</option>
+                                <option value="cath">Крест католический 4-кон. — 35 BYN</option>
+                                <option value="rel">Крест резной трилистник — 45 BYN</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Builder Step 5: Text & Signs -->
+                    <div class="form-row">
+                        <div class="form-group" style="flex:2;">
+                            <label class="form-label">Текст ФИО и дат для подсчета знаков:</label>
+                            <input type="text" v-model="mb.lettersText" placeholder="Иванов Иван Иванович 1950 — 2024">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Нанесение букв:</label>
+                            <select v-model="mb.letterFinish">
+                                <option value="standard">Гравировка стандарт</option>
+                                <option value="painted">Покраска букв</option>
+                                <option value="gold">Сусальное золото</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="m3-btn m3-btn-outlined" @click="showMonumentModal = false">Отмена</button>
+                    <button class="m3-btn m3-btn-primary" @click="applyMonumentBuilder">Добавить в смету</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 2: CATALOG BOTTOM SHEET (1:1 with CatalogBottomSheet.kt) -->
+        <div v-if="showCatalogModal" class="modal-overlay" @click.self="showCatalogModal = false">
+            <div class="modal-card" style="max-width:700px;">
+                <div class="modal-header">
+                    <strong>Каталог товаров и услуг</strong>
+                    <button style="border:none; background:none; cursor:pointer;" @click="showCatalogModal = false">
+                        <span class="icon">close</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" v-model="catalogFilter" placeholder="🔍 Поиск..." style="margin-bottom:12px;">
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div v-for="it in filteredPriceItems" :key="it.id" 
+                             style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; cursor:pointer;"
+                             @click="addItemFromCatalog(it)">
+                            <div>
+                                <span class="chip" style="font-size:10px; margin-bottom:2px;">{{ it.category }}</span>
+                                <div style="font-weight:600; font-size:13px;">{{ it.name }}</div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <strong style="color:#15803d;">{{ it.currentPrice.toFixed(2) }} BYN</strong>
+                                <button class="m3-btn m3-btn-tonal" style="padding:4px 8px; font-size:12px;">+ В смету</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </main>
+        </div>
+
+        <!-- MODAL 3: DIMENSION CALCULATORS (1:1 with DimensionCalculatorsDialog.kt) -->
+        <div v-if="showDimensionsModal" class="modal-overlay" @click.self="showDimensionsModal = false">
+            <div class="modal-card" style="max-width:650px;">
+                <div class="modal-header">
+                    <strong>Замеры и расчёты</strong>
+                    <button style="border:none; background:none; cursor:pointer;" @click="showDimensionsModal = false">
+                        <span class="icon">close</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="tabs-header">
+                        <button class="tab-btn" :class="{active: dimTab === 0}" @click="dimTab = 0">Ограда / Периметр</button>
+                        <button class="tab-btn" :class="{active: dimTab === 1}" @click="dimTab = 1">Плитка / Площадь</button>
+                        <button class="tab-btn" :class="{active: dimTab === 2}" @click="dimTab = 2">Доставка</button>
+                    </div>
+
+                    <!-- Fence -->
+                    <div v-if="dimTab === 0">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Сторона А (метры)</label>
+                                <input type="number" step="0.1" v-model.number="dimFence.sideA">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Сторона Б (метры)</label>
+                                <input type="number" step="0.1" v-model.number="dimFence.sideB">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Цена за м.п. (BYN)</label>
+                                <input type="number" v-model.number="dimFence.price">
+                            </div>
+                        </div>
+                        <div style="font-weight:700; margin:10px 0;">Периметр: {{ ((dimFence.sideA + dimFence.sideB) * 2).toFixed(1) }} м.п. • Сумма: {{ (((dimFence.sideA + dimFence.sideB) * 2) * dimFence.price).toFixed(2) }} BYN</div>
+                        <button class="m3-btn m3-btn-primary" @click="addFenceToEstimate">Добавить ограду в смету</button>
+                    </div>
+
+                    <!-- Tile -->
+                    <div v-if="dimTab === 1">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Длина (м)</label>
+                                <input type="number" step="0.1" v-model.number="dimTile.len">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Ширина (м)</label>
+                                <input type="number" step="0.1" v-model.number="dimTile.width">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Цена за 1 м² (BYN)</label>
+                                <input type="number" v-model.number="dimTile.price">
+                            </div>
+                        </div>
+                        <div style="font-weight:700; margin:10px 0;">Площадь: {{ (dimTile.len * dimTile.width).toFixed(2) }} м² • Сумма: {{ ((dimTile.len * dimTile.width) * dimTile.price).toFixed(2) }} BYN</div>
+                        <button class="m3-btn m3-btn-primary" @click="addTileToEstimate">Добавить укладку плитки</button>
+                    </div>
+
+                    <!-- Delivery -->
+                    <div v-if="dimTab === 2">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Расстояние от базы (км)</label>
+                                <input type="number" v-model.number="dimDeliv.km">
+                            </div>
+                        </div>
+                        <div style="font-weight:700; margin:10px 0;">Итого доставка: {{ (60 + Math.max(0, dimDeliv.km - 15) * 1.5).toFixed(2) }} BYN</div>
+                        <button class="m3-btn m3-btn-primary" @click="addDeliveryToEstimate">Добавить доставку</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 4: CUSTOM ITEM (1:1 with CustomItemDialog.kt) -->
+        <div v-if="showCustomItemModal" class="modal-overlay" @click.self="showCustomItemModal = false">
+            <div class="modal-card" style="max-width:500px;">
+                <div class="modal-header">
+                    <strong>Добавить свою позицию</strong>
+                    <button style="border:none; background:none; cursor:pointer;" @click="showCustomItemModal = false">
+                        <span class="icon">close</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group" style="margin-bottom:12px;">
+                        <label class="form-label">Название услуги или товара</label>
+                        <input type="text" v-model="ci.name" placeholder="Например: Дополнительная надпись">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Цена (BYN)</label>
+                            <input type="number" v-model.number="ci.price">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Количество</label>
+                            <input type="number" v-model.number="ci.qty">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="m3-btn m3-btn-outlined" @click="showCustomItemModal = false">Отмена</button>
+                    <button class="m3-btn m3-btn-primary" @click="addCustomItem">Добавить</button>
+                </div>
+            </div>
+        </div>
 
         <!-- PRINT CONTAINER -->
-        <div id="printArea" v-html="printHtmlContent"></div>
+        <div id="printArea" v-html="printHtml"></div>
     </div>
 
-    <!-- APPLICATION LOGIC SCRIPT -->
+    <!-- SCRIPT -->
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
 
         createApp({
             setup() {
-                // Firebase Config
+                const currentScreen = ref('CALCULATOR');
+                const priceTab = ref(0);
+                const syncStatus = ref('База онлайн');
+                const orders = ref([]);
+                const showClientForm = ref(true);
+                const showMonumentModal = ref(false);
+                const showCatalogModal = ref(false);
+                const showDimensionsModal = ref(false);
+                const showCustomItemModal = ref(false);
+                const catalogFilter = ref('');
+                const orderSearchQuery = ref('');
+                const dimTab = ref(0);
+                const printHtml = ref('');
+
+                // Firebase
                 const firebaseConfig = {
                     apiKey: "AIzaSyBOzkw_mMXjES9dMcBT70EwQRLD7ehWiUc",
                     projectId: "dwa-angeld",
                     storageBucket: "dwa-angeld.firebasestorage.app",
                     appId: "1:108964409159:android:9de2af51a6bd1f7fefe662"
                 };
-
                 firebase.initializeApp(firebaseConfig);
                 const db = firebase.firestore();
 
-                const activeTab = ref('calc');
-                const syncStatusText = ref('Подключение к базе...');
-                const orders = ref([]);
-                const loadingOrders = ref(true);
-                const ordersSearch = ref('');
-                const printHtmlContent = ref('');
+                // Order Form
+                const orderForm = ref({
+                    orderNumber: generateOrderNum(),
+                    clientName: '',
+                    clientPhone: '',
+                    deceasedName: '',
+                    deceasedBirthDate: '',
+                    deceasedDeathDate: '',
+                    cemeteryName: '',
+                    plotNumber: '',
+                    deadline: '',
+                    notes: ''
+                });
 
-                // Default Prices
+                function generateOrderNum() {
+                    const d = new Date();
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const rnd = Math.floor(100 + Math.random() * 900);
+                    return `${dd}/${mm}-${rnd}`;
+                }
+
+                // Prices
                 const prices = ref({
                     usd_exchange_rate: 3.25,
+                    eur_exchange_rate: 3.55,
                     letter_standard: 1.60,
                     installation_base_price: 500.0,
                     demontazh_base_price: 150.0,
                     measure_tile_price_sqm: 85.0
                 });
 
-                // Stone materials & Presets
-                const stoneMaterials = ref([
-                    { name: "Габбро-Диабаз (Карелия, черный)" },
-                    { name: "Аврора (Красно-черный)" },
-                    { name: "Балтик Грин (Зеленый гранит)" },
-                    { name: "Дымовский (Коричневый)" },
-                    { name: "Покостовский (Серый)" },
-                    { name: "Мансуровский (Белый гранит)" }
-                ]);
-
-                const sizePresets = ref([
-                    { label: "80×40×5", h: 80, w: 40, t: 5 },
-                    { label: "100×50×5", h: 100, w: 50, t: 5 },
-                    { label: "100×50×8", h: 100, w: 50, t: 8 },
-                    { label: "120×60×8", h: 120, w: 60, t: 8 },
-                    { label: "120×60×10", h: 120, w: 60, t: 10 },
-                    { label: "140×70×10", h: 140, w: 70, t: 10 }
-                ]);
-
-                // Order Form State
-                const orderForm = ref({
-                    orderNumber: generateOrderNumber(),
-                    clientName: '',
-                    clientPhone: '',
-                    deadline: '',
-                    deceasedName: '',
-                    datesText: '',
-                    cemeteryName: '',
-                    notes: ''
-                });
-
-                // Monument builder
-                const monument = ref({
-                    height: 100,
-                    width: 50,
-                    thickness: 8,
-                    material: "Габбро-Диабаз (Карелия, черный)",
+                // Monument Builder State
+                const mb = ref({
+                    height: 100, width: 50, thickness: 8,
+                    material: "Габбро-Диабаз (Карелия)",
                     polish: "Круговая (со всех сторон)",
-                    shape: "Прямой (стандарт)"
+                    shape: "Прямой (стандарт)",
+                    tumba: "60x20x15",
+                    cvetnik: "stand",
+                    photo: "engr_mach",
+                    frame: "none",
+                    cross: "orth",
+                    lettersText: "",
+                    letterFinish: "standard"
                 });
 
-                const tumbaType = ref('none');
-                const cvetnikType = ref('none');
-                const photoType = ref('none');
-                const frameType = ref('none');
-                const crossType = ref('none');
-                const decorType = ref('none');
-                const lettersInput = ref('');
-                const letterCount = ref(0);
-                const accessoryType = ref('none');
+                const monumentPresets = [
+                    { l: "80×40×5", h: 80, w: 40, t: 5 },
+                    { l: "100×50×5", h: 100, w: 50, t: 5 },
+                    { l: "100×50×8", h: 100, w: 50, t: 8 },
+                    { l: "120×60×8", h: 120, w: 60, t: 8 },
+                    { l: "120×60×10", h: 120, w: 60, t: 10 }
+                ];
 
-                const works = ref({
-                    install: false,
-                    demontazh: false,
-                    tileSqm: null
-                });
+                const stoneMaterials = [
+                    { name: "Габбро-Диабаз (Карелия)", origin: "Карелия, Россия", coefficient: 1.0 },
+                    { name: "Аврора (Красно-черный)", origin: "Финляндия", coefficient: 1.35 },
+                    { name: "Балтик Грин (Зеленый)", origin: "Финляндия", coefficient: 1.4 },
+                    { name: "Дымовский (Коричневый)", origin: "Ленинградская обл.", coefficient: 1.25 },
+                    { name: "Покостовский (Серый)", origin: "Украина", coefficient: 1.15 },
+                    { name: "Мансуровский (Белый)", origin: "Урал", coefficient: 1.3 }
+                ];
 
-                const customItem = ref({ name: '', price: 0, qty: 1 });
+                // Estimates & Calculations
                 const estimateItems = ref([]);
                 const discountAmount = ref(0);
                 const prepaymentAmount = ref(0);
 
-                // Financial Calculations
                 const subtotalAmount = computed(() => {
-                    return estimateItems.value.reduce((sum, it) => sum + (it.price * it.quantity), 0);
+                    return estimateItems.value.reduce((s, it) => s + (it.price * it.quantity), 0);
                 });
-
                 const totalAmount = computed(() => {
                     return Math.max(0, subtotalAmount.value - (discountAmount.value || 0));
                 });
-
                 const remainingAmount = computed(() => {
                     return Math.max(0, totalAmount.value - (prepaymentAmount.value || 0));
                 });
 
-                // Presets & Form helpers
-                function generateOrderNumber() {
-                    const d = new Date();
-                    const day = String(d.getDate()).padStart(2, '0');
-                    const mo = String(d.getMonth() + 1).padStart(2, '0');
-                    const rnd = Math.floor(100 + Math.random() * 900);
-                    return `${day}/${mo}-${rnd}`;
+                // Custom item modal
+                const ci = ref({ name: '', price: 0, qty: 1 });
+                function addCustomItem() {
+                    if (!ci.value.name) return;
+                    estimateItems.value.push({
+                        name: ci.value.name,
+                        price: Number(ci.value.price) || 0,
+                        quantity: Number(ci.value.qty) || 1,
+                        category: "Прочее"
+                    });
+                    ci.value.name = ''; ci.value.price = 0; ci.value.qty = 1;
+                    showCustomItemModal.value = false;
                 }
 
-                function setPreset(p) {
-                    monument.value.height = p.h;
-                    monument.value.width = p.w;
-                    monument.value.thickness = p.t;
-                }
-
-                function calcLetters() {
-                    const clean = (lettersInput.value || '').replace(/\s+/g, '');
-                    letterCount.value = clean.length;
-                }
-
-                // Add Items to Estimate
-                function addMonumentToEstimate() {
-                    const m = monument.value;
-                    let basePrice = (m.height * m.width * m.thickness * 0.095);
-                    if (m.material.includes("Аврора") || m.material.includes("Балтик")) basePrice *= 1.35;
-                    if (m.shape.includes("+60")) basePrice += 60;
-                    if (m.shape.includes("+120")) basePrice += 120;
-                    if (m.shape.includes("+250")) basePrice += 250;
+                // Apply monument builder
+                function applyMonumentBuilder() {
+                    let cost = mb.value.height * mb.value.width * mb.value.thickness * 0.095;
+                    if (mb.value.material.includes("Аврора") || mb.value.material.includes("Балтик")) cost *= 1.35;
+                    if (mb.value.shape.includes("+60")) cost += 60;
+                    if (mb.value.shape.includes("+120")) cost += 120;
+                    if (mb.value.shape.includes("+250")) cost += 250;
 
                     estimateItems.value.push({
-                        name: `Стела ${m.height}×${m.width}×${m.thickness} см (${m.material})`,
-                        category: "Стелы",
-                        price: Math.round(basePrice),
+                        name: `Стела ${mb.value.height}×${mb.value.width}×${mb.value.thickness} см (${mb.value.material})`,
+                        price: Math.round(cost),
                         quantity: 1,
-                        customNote: `Полировка: ${m.polish}, Форма: ${m.shape}`
+                        category: "Памятники",
+                        customNote: `Полировка: ${mb.value.polish}, Форма: ${mb.value.shape}`
                     });
+
+                    if (mb.value.tumba === '60x20x15') estimateItems.value.push({ name: "Тумба 60×20×15 см (Габбро)", price: 150, quantity: 1, category: "Памятники" });
+                    else if (mb.value.tumba === '70x20x20') estimateItems.value.push({ name: "Тумба 70×20×20 см (Габбро)", price: 200, quantity: 1, category: "Памятники" });
+                    else if (mb.value.tumba === '120x20x20') estimateItems.value.push({ name: "Тумба 120×20×20 см (двойная)", price: 320, quantity: 1, category: "Памятники" });
+
+                    if (mb.value.cvetnik === 'stand') estimateItems.value.push({ name: "Цветник открытый 100×50×8 см", price: 180, quantity: 1, category: "Памятники" });
+                    else if (mb.value.cvetnik === 'semi') estimateItems.value.push({ name: "Цветник полузакрытый со слэбом", price: 260, quantity: 1, category: "Памятники" });
+                    else if (mb.value.cvetnik === 'full') estimateItems.value.push({ name: "Глухая надгробная плита 100×50×5 см", price: 380, quantity: 1, category: "Памятники" });
+                    else if (mb.value.cvetnik === 'double') estimateItems.value.push({ name: "Цветник двойной 100×110 см", price: 320, quantity: 1, category: "Памятники" });
+
+                    if (mb.value.photo === 'engr_mach') estimateItems.value.push({ name: "Гравировка портрета станочная", price: 120, quantity: 1, category: "Гравировка" });
+                    else if (mb.value.photo === 'engr_hand') estimateItems.value.push({ name: "Гравировка портрета ручная", price: 160, quantity: 1, category: "Гравировка" });
+                    else if (mb.value.photo === 'ceram_13x18') estimateItems.value.push({ name: "Фотокерамика 13×18 см", price: 120, quantity: 1, category: "Гравировка" });
+                    else if (mb.value.photo === 'ceram_18x24') estimateItems.value.push({ name: "Фотокерамика 18×24 см", price: 160, quantity: 1, category: "Гравировка" });
+                    else if (mb.value.photo === 'triplex_20x30') estimateItems.value.push({ name: "Фото на стекле триплекс 20×30 см", price: 360, quantity: 1, category: "Гравировка" });
+
+                    if (mb.value.frame === 'vrezka') estimateItems.value.push({ name: "Врезка медальона в гранит", price: 40, quantity: 1, category: "Гравировка" });
+                    else if (mb.value.frame === 'bronze') estimateItems.value.push({ name: "Бронзовая рамка Caggiati", price: 140, quantity: 1, category: "Гравировка" });
+
+                    if (mb.value.cross === 'orth') estimateItems.value.push({ name: "Крест православный (гравировка)", price: 35, quantity: 1, category: "Гравировка" });
+                    else if (mb.value.cross === 'cath') estimateItems.value.push({ name: "Крест католический (гравировка)", price: 35, quantity: 1, category: "Гравировка" });
+                    else if (mb.value.cross === 'rel') estimateItems.value.push({ name: "Крест резной с распятием", price: 45, quantity: 1, category: "Гравировка" });
+
+                    if (mb.value.lettersText.trim()) {
+                        const len = mb.value.lettersText.replace(/\s+/g, '').length;
+                        const p = Math.round(len * prices.value.letter_standard);
+                        estimateItems.value.push({ name: `Гравировка текста (${len} знаков)`, price: p, quantity: 1, category: "Гравировка", customNote: mb.value.lettersText });
+                    }
+
+                    showMonumentModal.value = false;
                 }
 
-                function addTumbaToEstimate() {
-                    const dict = {
-                        'standard': { name: "Тумба 60×20×15 см (Габбро)", price: 150 },
-                        'large': { name: "Тумба 70×20×20 см (Габбро)", price: 200 },
-                        'double': { name: "Тумба 120×20×20 см (двойная)", price: 320 }
-                    };
-                    if (dict[tumbaType.value]) {
-                        estimateItems.value.push({ ...dict[tumbaType.value], category: "Тумбы", quantity: 1 });
-                    }
-                }
+                // Measurement tools
+                const dimFence = ref({ sideA: 2.0, sideB: 2.5, price: 45.0 });
+                const dimTile = ref({ len: 2.0, width: 2.5, price: 85.0 });
+                const dimDeliv = ref({ km: 25 });
 
-                function addCvetnikToEstimate() {
-                    const dict = {
-                        'standard': { name: "Цветник стандартный 100×50×8 см", price: 180 },
-                        'semi': { name: "Цветник полузакрытый", price: 260 },
-                        'full_plate': { name: "Глухая надгробная плита 100×50×5 см", price: 380 },
-                        'double_cvetnik': { name: "Цветник двойной 100×110 см", price: 320 }
-                    };
-                    if (dict[cvetnikType.value]) {
-                        estimateItems.value.push({ ...dict[cvetnikType.value], category: "Цветники", quantity: 1 });
-                    }
-                }
-
-                function addPhotoToEstimate() {
-                    const dict = {
-                        'engraving': { name: "Гравировка портрета станочная", price: 120 },
-                        'engraving_hand': { name: "Гравировка портрета ручная", price: 160 },
-                        'ceram_13x18': { name: "Фотокерамика 13×18 см", price: 120 },
-                        'ceram_18x24': { name: "Фотокерамика 18×24 см", price: 160 },
-                        'glass_20x30': { name: "Фото на стекле триплекс 20×30 см", price: 360 }
-                    };
-                    if (dict[photoType.value]) {
-                        estimateItems.value.push({ ...dict[photoType.value], category: "Портрет", quantity: 1 });
-                    }
-                    if (frameType.value === 'vrezka') {
-                        estimateItems.value.push({ name: "Врезка медальона в гранит", price: 40, category: "Оформление", quantity: 1 });
-                    } else if (frameType.value === 'bronze') {
-                        estimateItems.value.push({ name: "Бронзовая рамка Caggiati", price: 140, category: "Оформление", quantity: 1 });
-                    }
-                }
-
-                function addDecorToEstimate() {
-                    if (crossType.value === 'cross_orth') {
-                        estimateItems.value.push({ name: "Крест православный (гравировка)", price: 35, category: "Гравировка", quantity: 1 });
-                    } else if (crossType.value === 'cross_cath') {
-                        estimateItems.value.push({ name: "Крест католический (гравировка)", price: 35, category: "Гравировка", quantity: 1 });
-                    } else if (crossType.value === 'cross_rel') {
-                        estimateItems.value.push({ name: "Крест резной с распятием", price: 55, category: "Гравировка", quantity: 1 });
-                    }
-
-                    if (decorType.value === 'rose_2') {
-                        estimateItems.value.push({ name: "Цветы: две розы (гравировка)", price: 35, category: "Гравировка", quantity: 1 });
-                    } else if (decorType.value === 'candle') {
-                        estimateItems.value.push({ name: "Свеча с розами (гравировка)", price: 35, category: "Гравировка", quantity: 1 });
-                    } else if (decorType.value === 'angel') {
-                        estimateItems.value.push({ name: "Молящийся ангел (гравировка)", price: 55, category: "Гравировка", quantity: 1 });
-                    }
-                }
-
-                function addLettersToEstimate() {
-                    const price = Math.round(letterCount.value * prices.value.letter_standard);
+                function addFenceToEstimate() {
+                    const perim = (dimFence.value.sideA + dimFence.value.sideB) * 2;
                     estimateItems.value.push({
-                        name: `Гравировка ФИО и дат (${letterCount.value} знаков)`,
-                        category: "Гравировка",
-                        price: price,
-                        quantity: 1,
-                        customNote: lettersInput.value
+                        name: `Ограда металлическая (${perim.toFixed(1)} м.п.)`,
+                        price: dimFence.value.price,
+                        quantity: perim,
+                        category: "Ограды и плитка"
                     });
+                    showDimensionsModal.value = false;
                 }
 
                 function addTileToEstimate() {
-                    const cost = Math.round(works.value.tileSqm * prices.value.measure_tile_price_sqm);
+                    const sq = dimTile.value.len * dimTile.value.width;
                     estimateItems.value.push({
-                        name: `Укладка плитки (${works.value.tileSqm} м²)`,
-                        category: "Благоустройство",
+                        name: `Укладка плитки (${sq.toFixed(2)} м²)`,
+                        price: dimTile.value.price,
+                        quantity: sq,
+                        category: "Ограды и плитка"
+                    });
+                    showDimensionsModal.value = false;
+                }
+
+                function addDeliveryToEstimate() {
+                    const cost = 60 + Math.max(0, dimDeliv.value.km - 15) * 1.5;
+                    estimateItems.value.push({
+                        name: `Доставка спецтранспортом (${dimDeliv.value.km} км)`,
                         price: cost,
-                        quantity: 1
+                        quantity: 1,
+                        category: "Прочее"
                     });
-                    works.value.tileSqm = null;
-                }
-
-                function addAccessoryToEstimate() {
-                    const dict = {
-                        'vase_25': { name: "Ваза гранитная 25 см (Габбро)", price: 110 },
-                        'vase_30': { name: "Ваза гранитная 30 см (Габбро)", price: 140 },
-                        'lampada': { name: "Лампада гранитная со стеклом", price: 130 },
-                        'bench': { name: "Скамья кованая с деревом", price: 160 },
-                        'table': { name: "Столик кованый на кладбище", price: 140 }
-                    };
-                    if (dict[accessoryType.value]) {
-                        estimateItems.value.push({ ...dict[accessoryType.value], category: "Аксессуары", quantity: 1 });
-                    }
-                }
-
-                function addCustomItemToEstimate() {
-                    if (!customItem.value.name) return;
-                    estimateItems.value.push({
-                        name: customItem.value.name,
-                        category: "Дополнительно",
-                        price: Number(customItem.value.price) || 0,
-                        quantity: Number(customItem.value.qty) || 1
-                    });
-                    customItem.value.name = '';
-                    customItem.value.price = 0;
-                    customItem.value.qty = 1;
+                    showDimensionsModal.value = false;
                 }
 
                 function removeItem(idx) {
                     estimateItems.value.splice(idx, 1);
                 }
 
-                // FIREBASE FIRESTORE SYNC
+                function clearEstimate() {
+                    if (confirm("Очистить текущий расчет сметы?")) {
+                        estimateItems.value = [];
+                        discountAmount.value = 0;
+                        prepaymentAmount.value = 0;
+                    }
+                }
+
+                // Firebase Catalog & Orders
+                const catalogItems = ref([
+                    { id: 1, category: "Памятники", name: "Стела 100×50×8 см (Габбро)", unit: "шт", currentPrice: 380.0 },
+                    { id: 2, category: "Памятники", name: "Тумба 60×20×15 см (Габбро)", unit: "шт", currentPrice: 150.0 },
+                    { id: 3, category: "Памятники", name: "Цветник 100×50×8 см", unit: "компл", currentPrice: 180.0 },
+                    { id: 4, category: "Гравировка", name: "Гравировка портрета станочная", unit: "услуга", currentPrice: 120.0 },
+                    { id: 5, category: "Гравировка", name: "Гравировка портрета ручная", unit: "услуга", currentPrice: 160.0 },
+                    { id: 6, category: "Ограды и плитка", name: "Монтаж (установка) памятника", unit: "услуга", currentPrice: 500.0 },
+                    { id: 7, category: "Ограды и плитка", name: "Демонтаж старого памятника", unit: "услуга", currentPrice: 150.0 },
+                    { id: 8, category: "Прочее", name: "Ваза гранитная 25 см (Габбро)", unit: "шт", currentPrice: 110.0 },
+                    { id: 9, category: "Прочее", name: "Лампада гранитная со стеклом", unit: "шт", currentPrice: 130.0 }
+                ]);
+
+                const filteredPriceItems = computed(() => {
+                    const q = catalogFilter.value.toLowerCase().trim();
+                    if (!q) return catalogItems.value;
+                    return catalogItems.value.filter(it => it.name.toLowerCase().includes(q) || it.category.toLowerCase().includes(q));
+                });
+
+                function addItemFromCatalog(it) {
+                    estimateItems.value.push({
+                        name: it.name,
+                        price: it.currentPrice,
+                        quantity: 1,
+                        category: it.category
+                    });
+                    showCatalogModal.value = false;
+                }
+
+                // Lists for Price Screen
+                const fontsList = [
+                    { name: "Академический (Классика)", sample: "Иванов Иван Иванович 1950 — 2024" },
+                    { name: "Брусок (Рубленый прямой)", sample: "ИВАНОВ ИВАН ИВАНОВИЧ 1950 — 2024" },
+                    { name: "Старославянский (Церковный)", sample: "Ивановъ Иванъ Ивановичъ" },
+                    { name: "Курсив / Каллиграфия", sample: "Иванов Иван Иванович" },
+                    { name: "Антиква / Модерн", sample: "Иванов Иван Иванович" }
+                ];
+
+                const drawingsList = [
+                    { category: "Крест", name: "Крест православный 8-кон.", price: 35 },
+                    { category: "Крест", name: "Крест католический 4-кон.", price: 35 },
+                    { category: "Крест", name: "Крест резной трилистник", price: 45 },
+                    { category: "Цветы", name: "Две розы у подножия", price: 35 },
+                    { category: "Свечи", name: "Свеча с розами", price: 35 },
+                    { category: "Ангелы", name: "Молящийся ангел", price: 55 }
+                ];
+
+                const photoList = [
+                    { type: "Фотокерамика", name: "Овал 13×18 см", price: 120 },
+                    { type: "Фотокерамика", name: "Овал 18×24 см", price: 160 },
+                    { type: "Фото на стекле", name: "Триплекс 20×30 см", price: 360 },
+                    { type: "Рамка", name: "Врезка в гранит", price: 40 },
+                    { type: "Рамка", name: "Бронзовая Caggiati", price: 140 }
+                ];
+
+                const vasesList = [
+                    { name: "Ваза гранитная 25 см (Габбро)", price: 110 },
+                    { name: "Ваза гранитная 30 см (Габбро)", price: 140 },
+                    { name: "Ваза гранитная 35 см (Габбро)", price: 180 },
+                    { name: "Лампада гранитная со стеклом", price: 130 }
+                ];
+
+                // Live Sync
                 onMounted(() => {
-                    db.collection("orders").onSnapshot((snapshot) => {
-                        loadingOrders.value = false;
-                        syncStatusText.value = `База онлайн (${snapshot.size} заказов)`;
-                        const list = [];
-                        snapshot.forEach((doc) => {
+                    db.collection("orders").onSnapshot((snap) => {
+                        const arr = [];
+                        snap.forEach(doc => {
                             const d = doc.data();
                             d.id = doc.id;
-                            list.push(d);
+                            arr.push(d);
                         });
-                        list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-                        orders.value = list;
-                    }, (err) => {
-                        console.error("Firestore sync error:", err);
-                        syncStatusText.value = "Ошибка подключения";
+                        arr.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+                        orders.value = arr;
+                        syncStatus.value = `База онлайн (${arr.length} смет)`;
                     });
                 });
 
-                const filteredOrders = computed(() => {
-                    const q = ordersSearch.value.toLowerCase().trim();
+                const filteredOrdersList = computed(() => {
+                    const q = orderSearchQuery.value.toLowerCase().trim();
                     if (!q) return orders.value;
                     return orders.value.filter(o => 
                         (o.orderNumber && o.orderNumber.toLowerCase().includes(q)) ||
@@ -1172,62 +1524,67 @@
                 });
 
                 function saveOrderToFirebase() {
-                    if (estimateItems.value.length === 0) return;
-                    
-                    // Check installation / demontazh checkboxes
-                    if (works.value.install) {
-                        estimateItems.value.push({ name: "Монтаж (установка) памятника", price: prices.value.installation_base_price, category: "Монтаж", quantity: 1 });
-                        works.value.install = false;
-                    }
-                    if (works.value.demontazh) {
-                        estimateItems.value.push({ name: "Демонтаж старого памятника", price: prices.value.demontazh_base_price, category: "Монтаж", quantity: 1 });
-                        works.value.demontazh = false;
-                    }
-
-                    const orderId = "ord_" + Date.now();
-                    const orderDoc = {
-                        id: orderId,
+                    const docId = "ord_" + Date.now();
+                    const docData = {
+                        id: docId,
                         orderNumber: orderForm.value.orderNumber,
                         clientName: orderForm.value.clientName,
                         clientPhone: orderForm.value.clientPhone,
                         deceasedName: orderForm.value.deceasedName,
+                        deceasedBirthDate: orderForm.value.deceasedBirthDate,
+                        deceasedDeathDate: orderForm.value.deceasedDeathDate,
                         cemeteryName: orderForm.value.cemeteryName,
-                        plotNumber: "",
+                        plotNumber: orderForm.value.plotNumber,
                         createdAt: Date.now(),
                         updatedAt: Date.now(),
                         status: "В работе",
                         subtotalAmount: subtotalAmount.value,
-                        discountPercent: 0,
                         discountAmount: discountAmount.value || 0,
                         totalAmount: totalAmount.value,
                         prepaymentAmount: prepaymentAmount.value || 0,
                         remainingAmount: remainingAmount.value,
                         itemsJson: JSON.stringify(estimateItems.value),
-                        notes: orderForm.value.deadline ? `Срок: ${orderForm.value.deadline}` : ""
+                        notes: orderForm.value.notes
                     };
 
-                    db.collection("orders").doc(orderId).set(orderDoc).then(() => {
-                        alert(`✅ Заказ № ${orderForm.value.orderNumber} успешно сохранен в облачную базу!\nОн сразу отображается в мобильном приложении на телефонах.`);
-                        orderForm.value.orderNumber = generateOrderNumber();
-                        orderForm.value.clientName = '';
-                        orderForm.value.clientPhone = '';
-                        orderForm.value.deceasedName = '';
-                        orderForm.value.deadline = '';
-                        estimateItems.value = [];
-                        discountAmount.value = 0;
-                        prepaymentAmount.value = 0;
-                        activeTab.value = 'orders';
-                    }).catch((err) => {
-                        alert("Ошибка сохранения в базу: " + err.message);
-                    });
+                    db.collection("orders").doc(docId).set(docData).then(() => {
+                        alert(`✅ Смета № ${orderForm.value.orderNumber} сохранена в базу!\nОна сразу появилась на смартфонах.`);
+                        orderForm.value.orderNumber = generateOrderNum();
+                        currentScreen.value = 'SAVED_ORDERS';
+                    }).catch(e => alert("Ошибка: " + e.message));
                 }
 
-                function savePricesToFirebase() {
-                    alert("✅ Тарифы обновлены!");
+                function loadOrderIntoCalculator(ord) {
+                    orderForm.value.orderNumber = ord.orderNumber || generateOrderNum();
+                    orderForm.value.clientName = ord.clientName || '';
+                    orderForm.value.clientPhone = ord.clientPhone || '';
+                    orderForm.value.deceasedName = ord.deceasedName || '';
+                    orderForm.value.deceasedBirthDate = ord.deceasedBirthDate || '';
+                    orderForm.value.deceasedDeathDate = ord.deceasedDeathDate || '';
+                    orderForm.value.cemeteryName = ord.cemeteryName || '';
+                    orderForm.value.plotNumber = ord.plotNumber || '';
+                    orderForm.value.notes = ord.notes || '';
+                    discountAmount.value = ord.discountAmount || 0;
+                    prepaymentAmount.value = ord.prepaymentAmount || 0;
+                    try {
+                        estimateItems.value = JSON.parse(ord.itemsJson || '[]');
+                    } catch(e) { estimateItems.value = []; }
+                    currentScreen.value = 'CALCULATOR';
                 }
 
-                // PRINT TEMPLATES (100% Matching A4 print layout)
-                function printCurrentEstimate() {
+                function deleteOrder(id) {
+                    if (confirm("Удалить эту смету из базы?")) {
+                        db.collection("orders").doc(id).delete();
+                    }
+                }
+
+                function formatDate(ts) {
+                    if (!ts) return '';
+                    return new Date(ts).toLocaleDateString('ru-RU');
+                }
+
+                // PRINT ENGINE (1:1 with DocxGenerator.kt)
+                function printEstimateA4() {
                     const data = {
                         orderNumber: orderForm.value.orderNumber,
                         clientName: orderForm.value.clientName,
@@ -1244,7 +1601,7 @@
                     executePrintEstimate(data);
                 }
 
-                function printCurrentFactoryOrder() {
+                function printFactoryOrderA4() {
                     const data = {
                         orderNumber: orderForm.value.orderNumber,
                         clientName: orderForm.value.clientName,
@@ -1258,18 +1615,12 @@
                     executePrintFactory(data);
                 }
 
-                function printOrderDoc(ord, type) {
+                function printDoc(ord, type) {
                     let items = [];
                     try { items = JSON.parse(ord.itemsJson || '[]'); } catch(e) {}
-                    const data = {
-                        ...ord,
-                        items: items
-                    };
-                    if (type === 'client') {
-                        executePrintEstimate(data);
-                    } else {
-                        executePrintFactory(data);
-                    }
+                    const data = { ...ord, items };
+                    if (type === 'estimate') executePrintEstimate(data);
+                    else executePrintFactory(data);
                 }
 
                 function executePrintEstimate(data) {
@@ -1287,7 +1638,7 @@
                         </tr>
                     `).join("");
 
-                    printHtmlContent.value = `
+                    printHtml.value = `
                         <style>
                             @page { size: A4 portrait; margin: 8mm 10mm 8mm 10mm; }
                             .p-wrap { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 11px; color: #111; line-height: 1.25; }
@@ -1366,7 +1717,7 @@
                         else if (n.includes("Плита")) plitas.push(n);
                     });
 
-                    printHtmlContent.value = `
+                    printHtml.value = `
                         <style>
                             @page { size: A4 portrait; margin: 6mm 10mm 6mm 10mm; }
                             .p-fac { font-family: "Times New Roman", Times, serif; font-size: 12px; color: #000; line-height: 1.3; }
@@ -1419,66 +1770,18 @@
                     setTimeout(() => window.print(), 100);
                 }
 
-                function formatDate(ts) {
-                    if (!ts) return '';
-                    return new Date(ts).toLocaleDateString('ru-RU');
-                }
-
-                function getStatusClass(st) {
-                    if (st === 'Готов') return 'status-ready';
-                    if (st === 'Выдан') return 'status-done';
-                    return 'status-work';
-                }
-
                 return {
-                    activeTab,
-                    syncStatusText,
-                    orders,
-                    loadingOrders,
-                    ordersSearch,
-                    filteredOrders,
-                    prices,
-                    stoneMaterials,
-                    sizePresets,
-                    orderForm,
-                    monument,
-                    tumbaType,
-                    cvetnikType,
-                    photoType,
-                    frameType,
-                    crossType,
-                    decorType,
-                    lettersInput,
-                    letterCount,
-                    works,
-                    accessoryType,
-                    customItem,
-                    estimateItems,
-                    discountAmount,
-                    prepaymentAmount,
-                    subtotalAmount,
-                    totalAmount,
-                    remainingAmount,
-                    printHtmlContent,
-                    setPreset,
-                    calcLetters,
-                    addMonumentToEstimate,
-                    addTumbaToEstimate,
-                    addCvetnikToEstimate,
-                    addPhotoToEstimate,
-                    addDecorToEstimate,
-                    addLettersToEstimate,
-                    addTileToEstimate,
-                    addAccessoryToEstimate,
-                    addCustomItemToEstimate,
-                    removeItem,
-                    saveOrderToFirebase,
-                    savePricesToFirebase,
-                    printCurrentEstimate,
-                    printCurrentFactoryOrder,
-                    printOrderDoc,
-                    formatDate,
-                    getStatusClass
+                    currentScreen, priceTab, syncStatus, orders,
+                    showClientForm, showMonumentModal, showCatalogModal, showDimensionsModal, showCustomItemModal,
+                    catalogFilter, orderSearchQuery, dimTab, printHtml,
+                    orderForm, prices, mb, monumentPresets, stoneMaterials,
+                    estimateItems, discountAmount, prepaymentAmount, subtotalAmount, totalAmount, remainingAmount,
+                    ci, addCustomItem, applyMonumentBuilder,
+                    dimFence, dimTile, dimDeliv, addFenceToEstimate, addTileToEstimate, addDeliveryToEstimate,
+                    removeItem, clearEstimate, catalogItems, filteredPriceItems, addItemFromCatalog,
+                    fontsList, drawingsList, photoList, vasesList, filteredOrdersList,
+                    saveOrderToFirebase, loadOrderIntoCalculator, deleteOrder, formatDate,
+                    printEstimateA4, printFactoryOrderA4, printDoc
                 };
             }
         }).mount('#app');
