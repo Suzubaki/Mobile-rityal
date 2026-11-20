@@ -279,61 +279,140 @@
 
 ## 8. Математическая и конструкторская логика
 
-### 8.1. Конструктор памятника (`ui/components/MonumentBuilderDialog.kt`)
-Главный Composable: `MonumentBuilderDialog(...)` (включая вспомогательные диалоги `ElementStoneSelector`, `StonePickerSheet`, `DimensionChip`, `DrawingPickerDialog`, `PhotoSizePickerDialog`, `PhotoFramePickerDialog`, `VasePickerDialog`).
+### 8.1. Конструктор памятника (`ui/components/MonumentBuilderDialog.kt`, 3698 строк)
+Главный Composable: `MonumentBuilderDialog(...)`.
+В файле определены ровно 5 вспомогательных Composable-компонентов:
+- `SectionHeader(title, icon)` — заголовок раздела конструктора;
+- `CostRow(label, amount)` — строка итоговой детализации;
+- `StoneMaterialSelector(...)` — выбор единого основного камня комплекта (список `RadioButton`, при пустом списке пород выводит красное предупреждение);
+- `ElementStoneSelector(...)` — компактный блок переключения индивидуального камня для отдельного элемента (`Switch` «Как у стелы» / «Инд. камень» + выпадающий список `ExposedDropdownMenuBox` для выбора другой породы);
+- `DrawingPickerDialog(...)` — модальный диалог множественного выбора рисунков гравировки с поиском и фильтром категорий.
+*(Выбор размеров фото, рамок, ваз и шрифта реализован через встроенные выпадающие списки `ExposedDropdownMenuBox`, без отдельных диалогов).*
 
-#### Базовая физика и стоимость камня
+#### 1) Входные параметры и инициализация данных
+`CalculatorScreen` передаёт в конструктор активные справочники из `RitualViewModel`:
+- **Камни (`materials`)**: активные `StoneMaterialEntity.toModel()`. Внутри конструктора fallback отсутствует — при пустом справочнике `StoneMaterialSelector` показывает ошибку конфигурации.
+- **Тарифы и услуги (`servicePrices` + `constructorServicePrices`)**: объединяются в общую карту `actualServicePrices: Map<String, Double>`; поиск цены идёт через `getServicePrice(code, fallback)`. Курс евро вычисляется как `actualEurRate = actualServicePrices["eur_exchange_rate"] ?: eurRate` (по умолчанию `3.55`).
+- **Фото, рамки, вазы**: при пустых списках из БД автоматически подставляются дефолтные каталоги `DefaultCatalog.getDefaultPhotoSizes()`, `getDefaultPhotoFrames()`, `getDefaultVases()`.
+- **Предзаполнение ФИО и эпитафии**:
+  - `CalculatorScreen` собирает `initialFioText` из `calcState.deceasedName` (или `deceasedLastName / FirstName / MiddleName`) + перенос строки + `deceasedBirthDate — deceasedDeathDate`. Если строка пуста, конструктор подставляет шаблон `"Иванов Иван Иванович\n15.05.1950 — 20.08.2024"`.
+  - Если `initialEpitaphText` пуст, подставляется `"Помним, любим, скорбим..."`.
+- **Зарезервированные поля в коде (не выводятся в UI):** `actualPresets` (`sizePresets`), `builtInKeys` / `customServices` / `selectedCustomServiceKeys`, а также параметр `onAddSingleItem` (активная нижняя кнопка добавления использует `onAddMultipleItems` + `onUpdateFactoryDetails`).
+
+#### 2) Базовая физика и расчёт камня
 - **Плотность гранита:** `stoneDensityKgM3 = 2900.0` кг/м³.
-- **Перевод размеров (см -> м³):**
-  $$\text{Объём (м}^3\text{)} = \frac{A \times B \times C}{1\,000\,000}$$
-- **Масса (кг):** $\text{Масса} = \text{Объём} \times 2900$.
-- **Стоимость элемента (BYN):** $\text{Цена} = \text{Объём} \times \text{pricePerM3}$ (где для каждого элемента можно выбрать либо основной камень `selectedStone`, либо отдельную породу через `ElementStoneSelector`).
+- **Единицы ввода:** размеры задаются в сантиметрах (строковые состояния парсятся через `toDoubleOrNull() ?: 0.0`).
+- **Объём элемента (м³):**
+  $$V = \frac{A_{\text{см}} \times B_{\text{см}} \times C_{\text{см}}}{1\,000\,000}$$
+- **Масса элемента (кг):** $M = V \times 2900.0$.
+- **Стоимость элемента (BYN):** $\text{Цена} = V \times \text{pricePerM3}$, где используется либо цена основного камня `selectedStone`, либо цена выбранной в `ElementStoneSelector` породы.
 
-#### Расчёт элементов комплекта
-1. **Стела (`steleH × steleW × steleT` см):** всегда рассчитывается из `selectedStone`.
-2. **Приставка (`includeAnnex`, по умолч. `80×25×8` см):** опциональная порода `selectedAnnexStone`.
-3. **Полка под стелу (`includeShelf`, по умолч. `70×15×5` см):** рассчитывается из основного `selectedStone`.
-4. **Тумба / Подставка (`includePlinth`):**
-   - Режим 1 части (`plinthL × plinthW × plinthH`, по умолч. `60×20×15` см).
-   - Режим 2 частей (`plinthHasTwoParts = true`): ч.1 (`60×20×15` см) + ч.2 (`40×20×15` см), для каждой можно задать отдельную породу камня.
-5. **Цветник (`includeFlowerbed`, автоматически отключается при включении надгробной плиты):**
-   - Поддерживает 3 формулы расчёта объёма (`FlowerbedCalcMode`):
-     - `OPEN_JOINT` (Открытый по стыкам — боковые длинные + короткая внутренняя):
-       $$V = \frac{2 \cdot L \cdot T \cdot B_w + (W - 2 B_w) \cdot T \cdot B_w}{1\,000\,000}$$
-     - `OPEN_SUM` (Открытый по полной сумме брусков — без вычета толщины):
+#### 3) Разделы 1 и 2: Каменные элементы комплекта
+1. **Основной камень (`selectedStone`, Раздел 1):** выбирается в `StoneMaterialSelector`. Применяется ко всей конструкции по умолчанию (для Стелы и Полки — всегда, для остальных элементов — если не включён индивидуальный камень).
+2. **Стела / Обелиск (`stele`):** включена всегда. Размеры по умолчанию: `H = 100`, `W = 50`, `T = 8` см. Всегда считается по цене основного `selectedStone`.
+3. **Приставка к стеле (`includeAnnex`, по умолч. `false`):**
+   - Размеры по умолч.: `H = 80`, `W = 25`, `T = 8` см.
+   - Имеет `ElementStoneSelector`: флаг `annexUseDifferentStone` по умолчанию `true` (подставляется `actualMaterials[1]` или `[0]` для контрастной вставки).
+4. **Полка под стелу (`includeShelf`, по умолч. `false`):**
+   - Размеры по умолч.: `L = 70`, `W = 15`, `T = 5` см.
+   - Всегда рассчитывается из основного камня `selectedStone` (без `ElementStoneSelector`).
+5. **Тумба / Подставка (`includePlinth`, по умолч. `true`):**
+   - Переключатель `plinthHasTwoParts` (по умолч. `false`) включает составную тумбу из 2 частей.
+   - **Часть 1:** по умолч. `L = 60`, `W = 20`, `H = 15` см, `plinth1UseDifferentStone = false`.
+   - **Часть 2** *(активна только при `plinthHasTwoParts = true`)*: по умолч. `L = 40`, `W = 20`, `H = 15` см, `plinth2UseDifferentStone = true` (порода `actualMaterials[1]` или `[0]`).
+   - Итоговые `plinthVolumeM3`, `plinthMassKg`, `plinthPrice` суммируют часть 1 и часть 2.
+6. **Цветник (`includeFlowerbed`, по умолч. `true`):**
+   - **Взаимоисключение с надгробной плитой:** включение цветника автоматически устанавливает `includeSlab = false`, и наоборот. Если `!includeFlowerbed || includeSlab`, объём и стоимость цветника равны `0.0`.
+   - Размеры по умолч.: длина `L = 100`, ширина `W = 60`, высота/толщина `T = 8`, ширина бруса `BarW = 5` см. Опциональный `ElementStoneSelector` (`flowerbedUseDifferentStone = false`).
+   - **3 формулы расчёта (`flowerbedMode`, по умолч. `"OPEN_JOINT"`):**
+     - `"OPEN_JOINT"` *(3 бруса со стыком)*: 2 длинных бруса по `L` и 1 поперечный длиной `max(0, W - 2*BarW)`:
+       $$V = \frac{2 \cdot L \cdot T \cdot B_w + \max(0, W - 2 B_w) \cdot T \cdot B_w}{1\,000\,000}$$
+     - `"OPEN_SUM"` *(3 бруса — сумма)*: 2 длинных бруса по `L` и 1 поперечный полной ширины `W` без вычета стыков:
        $$V = \frac{2 \cdot L \cdot T \cdot B_w + W \cdot T \cdot B_w}{1\,000\,000}$$
-     - `CLOSED_4` (Закрытый 4 балки — замкнутый контур):
-       $$V = \frac{2 \cdot L \cdot T \cdot B_w + 2 \cdot (W - 2 B_w) \cdot T \cdot B_w}{1\,000\,000}$$
-     *(где $L$ — длина, $W$ — ширина, $T$ — высота, $B_w$ — сечение балки).*
-   - Может использовать отдельную породу `selectedFlowerbedStone`.
-6. **Надгробная плита (`includeSlab`):**
-   - 1 часть (по умолч. `100×60×5` см) или 2 части (`slabHasTwoParts = true`, ч.2 по умолч. `100×30×5` см) с выбором породы для каждой части.
+     - `"CLOSED_4"` *(4 бруса — закрытый контур)*: 2 длинных по `L` и 2 поперечных со стыком `max(0, W - 2*BarW)`:
+       $$V = \frac{2 \cdot L \cdot T \cdot B_w + 2 \cdot \max(0, W - 2 B_w) \cdot T \cdot B_w}{1\,000\,000}$$
+7. **Надгробная плита (`includeSlab`, по умолч. `false`):**
+   - Переключатель `slabHasTwoParts` (по умолч. `false`).
+   - **Часть 1:** по умолч. `L = 100`, `W = 60`, `T = 5` см (`slab1UseDifferentStone = false`).
+   - **Часть 2** *(активна при `slabHasTwoParts = true`)*: по умолч. `L = 100`, `W = 30`, `T = 5` см (`slab2UseDifferentStone = true`, порода `actualMaterials[1]` или `[0]`).
+- **Сводка по камню:** `stoneTotal` суммирует стоимости всех включённых элементов; `totalEstimatedWeightKg` складывает их массы и округляет до целых кг (`.toInt()`).
 
-#### Расчёт гравировки и сусального золота
-Поддерживаются 3 технологии нанесения (`EngravingTechnique`: `STANDARD`, `PAINTED`, `GOLD`) раздельно для ФИО/дат и для эпитафии:
-- Автоподсчёт символов (`!it.isWhitespace()`) и ручная корректировка для сусального золота: подсчитываются заглавные буквы (`isUpperCase()`) и прочие/строчные/цифры (`!isUpperCase()`).
-- **`STANDARD` (обычная гравировка):** $\text{Количество} \times \text{letter\_standard}$ (`1.60 BYN/зн.` для ФИО/дат, `1.50 BYN/зн.` для эпитафии).
-- **`PAINTED` (покраска букв):** $\text{Количество} \times \text{letter\_painted}$ (`10.00 BYN/зн.`).
-- **`GOLD` (сусальное золото в EUR):**
-  $$\text{Стоимость BYN} = \left( N_{\text{загл.}} \times P_{\text{gold\_large}} + (N_{\text{строчн.}} + N_{\text{цифр}}) \times P_{\text{gold\_small}} \right) \times \text{eurRate}$$
-  где по умолчанию $P_{\text{gold\_large}} = 8.0\,\text{€}$, $P_{\text{gold\_small}} = 7.0\,\text{€}$.
-- **Предпросмотр шрифта:** рендерится с помощью `FontHelper` на тёмной гранитной подложке.
+#### 4) Раздел 3: Гравировка, шрифты, предпросмотр и сусальное золото
+- **Используемые тарифы из `actualServicePrices`:**
+  - `letter_standard` — `1.60 BYN` (обычный знак ФИО/дат);
+  - `letter_painted` — `10.00 BYN` (покрашенная буква/знак);
+  - `letter_gold_large` — `8.00 EUR` (заглавная буква сусальным золотом);
+  - `letter_gold_small` — `7.00 EUR` (строчная буква или цифра сусальным золотом);
+  - `letter_epitaph` — `1.50 BYN` (обычный знак эпитафии).
+- **Выбор шрифта и живой предпросмотр:**
+  - В `ExposedDropdownMenuBox` выбирается `selectedFont` (`EngravingFontItem`). Рядом отображается бейдж стоимости из каталога шрифтов (`"Бесплатно"` или цена), однако в итоговую сумму `engravingTotal` стоимость самого шрифта отдельно не добавляется — расчёт ведётся исключительно по знакам `fioPrice + epitaphPrice`.
+  - Ниже рендерится имитация чёрной гранитной стелы (`#1B1E22`), где текст `fioText` и `epitaphText` отображается реальным шрифтом из `FontHelper` и окрашивается под выбранную технологию (`"GOLD"` -> золотой `#FACC15`, `"PAINTED"` -> белый `#FFFFFF`, `"STANDARD"` -> светло-серый `#E2E8F0` / `#CBD5E1`).
+- **Алгоритм подсчёта знаков ФИО и дат (`fioLetteringMode`):**
+  - В отличие от эпитафии, в ФИО считаются **только буквы и цифры** (пробелы, дефисы `-`, тире `—`, точки `.` и запятые игнорируются):
+    - `autoLargeCount = fioText.count { it.isLetter() && it.isUpperCase() }`
+    - `autoSmallCount = fioText.count { it.isLetter() && !it.isUpperCase() }`
+    - `autoDigitsCount = fioText.count { it.isDigit() }`
+  - В режиме `"GOLD"` появляется кнопка ручной правки `showManualFioCounts` для отдельной корректировки заглавных, строчных и цифр, а также 3 карточки разбивки (`Заглавные 8€`, `Строчные 7€`, `Цифры 7€`).
+  - Расчёт:
+    - `"GOLD"`: `fioGoldTotalEur = fioLargeLetters * goldLargeEurPrice + (fioSmallLetters + fioDigits) * goldSmallEurPrice`; `fioPrice = fioGoldTotalEur * actualEurRate` (BYN).
+    - `"PAINTED"`: `fioPrice = (fioLarge + fioSmall + fioDigits) * paintedLetterPrice`.
+    - `"STANDARD"`: `fioPrice = (fioLarge + fioSmall + fioDigits) * standardLetterPrice`.
+- **Алгоритм подсчёта эпитафии (`epitaphLetteringMode`):**
+  - В режимах `"STANDARD"` и `"PAINTED"` (когда не включена ручная правка `showManualEpitaphCounts`) считается `epitaphText.count { !it.isWhitespace() }` — то есть **все непробельные символы, включая знаки препинания**.
+  - В режиме `"GOLD"` (или при ручной правке) считаются только буквы и цифры (`isLetter()` с разбивкой по регистру и `isDigit()`).
+  - Расчёт:
+    - `"GOLD"`: `(large * goldLargeEurPrice + (small + digits) * goldSmallEurPrice) * actualEurRate`.
+    - `"PAINTED"`: `countedEpitaph * paintedLetterPrice`.
+    - `"STANDARD"`: `countedEpitaph * epitaphSignPrice` (`1.50 BYN`).
 
-#### Декор, фото, аксессуары и работы
-- **Рисунки (`DrawingPickerDialog`):** выбор из активных `EngravingDrawingItem` (крест, цветы, икона, ангел, свечи). Поддерживается разбиение на категории в `onUpdateFactoryDetails` (`crossInfo`, `photoVignetteInfo` с виньетками, `plateDecoration`).
-- **Фото и рамка (`PhotoSizePickerDialog`, `PhotoFramePickerDialog`):** выбор размера фото (`PhotoSizeItem`) и рамки (`PhotoFrameItem`).
-- **Вазы (`VasePickerDialog`):** выбор вазы (`VaseItem`) и количества `vaseQty`.
-- **Монтаж и демонтаж:** редактируемые поля на базе `installation_base_price` (500 BYN) и `demontazh_base_price` (150 BYN), плюс текстовое поле заметок по демонтажу.
+#### 5) Разделы 4–7: Декор, фото, вазы и работы
+- **Раздел 4 — Рисунки (`selectedDrawingIds`):**
+  - Кнопка открывает `DrawingPickerDialog` с поиском по `name`, `code`, `category` и фильтр-чипами (`"Все"`, `"Крест"`, `"Цветок"`, `"Иконы"`, `"Ангелы"`, `"Свечи"` + кастомные категории из БД).
+  - Выбранные рисунки отображаются в конструкторе в виде `InputChip` с кнопкой удаления; `drawingsTotal = selectedDrawingsList.sumOf { it.price }`.
+- **Раздел 5 — Портрет / фото и рамка (`includePhoto`, по умолч. `false`):**
+  - Два выпадающих списка `ExposedDropdownMenuBox`: размер фото (`actualPhotoSizes`, сгруппированы по `category`) и рамка/врезка (`actualPhotoFrames`, с типом `materialType` и ценой).
+  - `photoTotal = photoSizePrice + photoFramePrice`.
+- **Раздел 6 — Вазы (`includeVase`, по умолч. `false`):**
+  - `ExposedDropdownMenuBox` по `actualVases` (группировка по `materialType`) + степпер количества `vaseQuantity` (`>= 1`).
+  - `vaseTotal = vaseUnitPrice * vaseQuantity`.
+- **Раздел 7 — Монтаж и демонтаж:**
+  - **Монтаж (`includeInstallation`, по умолч. `false`):** базовое значение берётся из `installation_base_price` (`500 BYN`), регулируется через `Slider` (`0..4000`, `steps = 79`), текстовое поле и 7 быстрых чипов (`400, 500, 800, 1000, 1200, 1500, 2000`).
+  - **Демонтаж (`includeDemontazh`, по умолч. `false`):** базовое значение из `demontazh_base_price` (`150 BYN`), регулируется через `Slider` (`0..1000`, `steps = 39`), поле ввода, 6 быстрых чипов (`50, 100, 150, 200, 300, 400`) и текстовое примечание `demontazhNote` (по умолч. `"Демонтаж старого надгробия / креста"`).
+  - `worksTotal = (installation если вкл.) + (demontazh если вкл.)`.
 
-#### Передача в смету
-Кнопка «Добавить комплект в расчёт»:
-1. Формирует `List<CalculatedItemData>` по каждому включённому компоненту (Стела, Приставка, Полка, Тумба ч.1/ч.2, Цветник, Надгробная плита ч.1/ч.2, Гравировка ФИО/эпитафии с пометкой «Сусальное золото» при `GOLD`, Рисунки, Фото, Рамка, Вазы, Монтаж, Демонтаж) и передаёт в `onAddMultipleItems`.
-2. Разбирает ФИО на Фамилию / Имя / Отчество (`split`), даты жизни (`deceasedBirthDate`, `deceasedDeathDate`) и вызывает `onUpdateFactoryDetails(...)` для мгновенного заполнения наряда завода.
+#### 6) Итоговая карточка и алгоритм кнопки «Добавить комплект в расчёт» (`testTag = "add_monument_detailed_btn"`)
+Итоговая сумма конструктора:
+`monumentGrandTotal = stoneTotal + engravingTotal + drawingsTotal + photoTotal + vaseTotal + worksTotal`.
 
-*(Примечание: в коде также вычисляются `builtInKeys` и `customServices` из `constructorServicePrices`, которые зарезервированы на будущее и не рендерятся как отдельный UI-блок).*
+По нажатию кнопки выполняются два шага:
+1. **Генерация позиций расчёта (`items: MutableList<CalculatedItemData>`) -> `onAddMultipleItems(items)`:**
+   - Категория `"Памятники"`:
+     - `Стела <размер> (<камень>)`
+     - `Приставка к стеле <размер> (<камень>)` *(если `includeAnnex`)*
+     - `Полка под стелу <размер> (<камень>)` *(если `includeShelf`)*
+     - `Тумба (подставка) <размер> (<камень>)` либо при `plinthHasTwoParts`: две отдельные позиции `Тумба ч.1 (основная)...` и `Тумба ч.2 (дополнительная)...`
+     - `Цветник (4 бруса закрытый | 3 бруса без вычитания стыка | 3 бруса со стыком) <размер> (<камень>)` *(если `includeFlowerbed && !includeSlab`)*
+     - `Надгробная плита <размер> (<камень>)` либо при `slabHasTwoParts`: `Надгробная плита ч.1...` и `Надгробная плита ч.2...`
+   - Категория `"Гравировка"`:
+     - ФИО и даты: `"Покраска букв ФИО и дат [Шрифт: ...]"` / `"Сусальное золото ФИО и дат [Шрифт: ...]"` / `"Гравировка ФИО и дат [Шрифт: ...]"`, `customNote = fioText.trim()`
+     - Эпитафия: `"Покраска эпитафии"` / `"Сусальное золото эпитафии"` / `"Гравировка эпитафии"`, `customNote = epitaphText.trim()`
+     - Каждый выбранный рисунок: `"Гравировка рисунка ${code} «${name}»"`, `customNote = "Категория: ${category}, код: ${code}"`
+     - Фото (`includePhoto`): `"Портрет / Фотокерамика (${photo.name})"` (`customNote = "Категория: ${category}, размер: ${dimensions}"`)
+     - Рамка (`includePhoto && selectedPhotoFrame.price > 0`): `"Рамка / врезка фото (${frame.name})"` (`customNote = "Тип/материал: ${materialType}"`). *Примечание: бесплатные варианты с ценой `0` (например, `"Без рамки"`) как отдельная сметная строка не добавляются, а передаются только в наряд.*
+   - Категория `"Прочее"`:
+     - `Ваза ${vase.name}` (`quantity = vaseQuantity`)
+     - `Монтаж (установка) памятника` *(если `includeInstallation && installationPrice > 0`)*
+     - `Демонтаж` *(если `includeDemontazh && demontazhPrice > 0`, `customNote = demontazhNote`)*
+2. **Обновление полей производственного наряда (`sendFactoryDetailsToState()` -> `onUpdateFactoryDetails`):**
+   - Разбирает `fioText` через `FactoryOrderDocumentData.splitFio(...)` и `extractDatesFromText(...)` на Фамилию, Имя, Отчество и даты рождения/смерти.
+   - Автоматически распределяет выбранные рисунки по категориям для наряда:
+     - Кресты (`category` или `name` содержит `"Крест"`, или `code` начинается с `"КР"`) -> `crossInfo`;
+     - Виньетки (`"Виньет"` или `code` начинается с `"В-"`) -> `photoVignetteInfo`;
+     - Все остальные рисунки -> `additionsInfo`.
+   - Формирует строковые описания для наряда: `obeliskInfo` (стела, при необходимости через `+ приставка ... + полка ...`), `plinthInfo`, `flowerbedInfo`, `slabInfo`, `vaseInfo`, `dismantlingInfo`, `epitaphText`, `monumentMaterial`, `photoInfo`, `frameInfo`. В `RitualViewModel.updateFactoryDetails` эти поля записываются в `CalculationState`.
 
 ### 8.2. Калькуляторы замеров (`ui/components/DimensionCalculatorsDialog.kt`)
-Содержит 4 вкладки с возможностью подставлять товары из каталога и сохранять тариф обратно в прайс (`onSaveServicePrice`):
+Содержит 4 вкладки с возможностью подставлять товары из каталога и сохранять обновлённый тариф обратно в прайс (`onSaveServicePrice`):
 1. **`FencePerimeterCalculator` (Ограда / Периметр):**
    - Периметр $P = (L + W) \times 2$ (пог. м); Стоимость $= P \times \text{Цена за м.п.}$ (тариф `measure_fence_price_pm`, по умолч. `45.0`).
 2. **`AreaTileCalculator` (Плитка / Площадь):**
@@ -354,35 +433,37 @@
 - `companyAddress = "«ДВА АНГЕЛА» Ольшаны рынок БРОДОК павильон 35"`
 - А также поля заказчика, усопшего, сметных позиций `items`, `subtotalAmount`, `discountPercent`, `discountAmount`, `totalAmount`, `prepaymentAmount`, `remainingAmount`, даты приёма и исполнения.
 
-Функции очистки и построения:
-- **`cleanEngravingCalculation(raw: String): String`:** удаляет расчётные формулы и цены в скобках `(...)` / `[...]` (например, `12 зн. × 1.60 BYN`, суммы в EUR/BYN), а если обнаружено «сусальн»/«золот», обязательно сохраняет/добавляет пометку `(Сусальное золото)` без дублирования.
+Ключевые функции очистки и построения:
+- **`cleanEngravingCalculation(raw: String): String`:** удаляет расчётные формулы, количество знаков, курсы и цены в скобках `(...)` / `[...]` (например, `12 зн. × 1.60 BYN`), оставляя понятное описание позиции. Если в названии/примечании обнаружено «сусальн»/«золот», обязательно сохраняет/добавляет пометку `(Сусальное золото)` без дублирования.
 - **`extractCleanDeceasedName(rawDeceasedName, items): String`:** извлекает чистое ФИО усопшего из поля заказа или из позиции гравировки.
-- **`extractBundleField(items, prefix): String`:** вытаскивает описание поля из комплектных записей (если они заданы в `customNote`).
-- **`fromCalculationState(state)`** и **`fromSavedOrder(order, items)`:** собирают объект `EstimateDocumentData`.
+- **`extractBundleField(items, prefix): String`:** вытаскивает описание поля из комплектных записей, если оно задано в `customNote`.
+- **`fromCalculationState(state)`** и **`fromSavedOrder(order, items)`:** собирают итоговый `EstimateDocumentData`, исключая технический расчётный шум и сохраняя маркеры сусального золота.
 
 ### 9.2. Производственный наряд для завода (`data/FactoryOrderDocumentData.kt`)
 Модель `FactoryOrderDocumentData` содержит:
 - Шапку организации, номер и дату заказа, данные заказчика.
 - Раздел «Сведения об усопшем»: `deceasedLastName`, `deceasedFirstName`, `deceasedMiddleName`, `deceasedBirthDate`, `deceasedDeathDate`.
 - Гравировка и оформление: `crossInfo`, `photoInfo`, `frameInfo`, `epitaphText`, `goldLeafInfo`, `plateDecoration`, `additionsInfo`.
-- Комплектация камня (с поддержкой первых и вторых частей): `monumentMaterial`, `obeliskInfo`, `annexInfo` (Приставка), `shelfInfo` (Полка), `plinthInfo`, `plinthPart2Info`, `flowerbedInfo`, `slabInfo`, `slabPart2Info`, `vaseInfo`, `dismantlingInfo`.
+- Комплектация камня (с поддержкой приставки, полки и первых/вторых частей): `monumentMaterial`, `obeliskInfo`, `annexInfo` (Приставка), `shelfInfo` (Полка), `plinthInfo`, `plinthPart2Info`, `flowerbedInfo`, `slabInfo`, `slabPart2Info`, `vaseInfo`, `dismantlingInfo`.
 
 Ключевые функции очистки и нормализации текста:
-- **`fixParentheses(input: String): String`:** балансирует и исправляет незакрытые/лишние круглые скобки `(` и `)`, удаляет пустые `()`, добавляет пробел перед `(` при необходимости.
-- **`cleanWorkshopText(raw: String): String`:** убирает английские/ценовые приставки (`BYN`, `USD`, `EUR`), формулы расчёта и лишние технические хвосты.
+- **`fixParentheses(input: String): String`:** балансирует незакрытые/лишние круглые скобки `(` и `)`, удаляет пустые `()`, добавляет пробел перед `(` при необходимости (применяется ко всем каменным элементам).
+- **`cleanWorkshopText(raw: String): String`:** удаляет английские/ценовые приставки (`BYN`, `USD`, `EUR`), формулы расчёта знаков и технические хвосты, оставляя только цеховые параметры.
 - **`cleanPhotoText(raw: String): String`:** убирает префиксы `Категория:`, `размер:`, слово `Портрет` и все скобки, оставляя чистый вид и размер фото.
 - **`cleanFrameText(raw: String): String`:** для врезки возвращает `"врезка"`, для `"Без рамки"` — пустую строку `""`, для рамок — только материал (например, `"бронза"`, `"алюминий"`, `"гранит"`).
 - **`splitFio(fullFio: String)`** и **`extractDatesFromText(raw: String)`:** раскладывают ФИО на 3 компонента и вытягивают даты жизни.
-- **`fromCalculationState(state)`**, **`fromSavedOrder(order, items)`**, **`fromEstimateDocumentData(...)`:** формируют наряд из `CalculationState`, `SavedOrder` или `EstimateDocumentData`, определяя использование сусального золота в ФИО и эпитафии (маркировка `(СУСАЛЬНОЕ ЗОЛОТО)` / `Сусальное золото`), разбирая размеры стелы, приставки, полки, 1-й/2-й частей тумбы и надгробной плиты, цветника и ваз, и применяя `fixParentheses` ко всем каменным элементам.
+- **`fromCalculationState(state)`**, **`fromSavedOrder(order, items)`** и **`fromEstimateDocumentData(...)`:**
+  - `fromCalculationState` и `fromSavedOrder` берут подготовленные поля `state`/`order` (`obeliskInfo`, `plinthInfo`, `epitaphText` и т. д.), дополнительно извлекают **Приставку (`annexInfo`)**, **Полку (`shelfInfo`)**, 2-е части тумбы (`plinthPart2Info`) и надгробной плиты (`slabPart2Info`) из `selectedItems`, очищают фото/рамки/цеховой текст и балансируют скобки через `fixParentheses`.
+  - `fromEstimateDocumentData` дополнительно определяет наличие сусального золота в позициях ФИО и эпитафии и добавляет маркировку `(СУСАЛЬНОЕ ЗОЛОТО)` / `Сусальное золото (ФИО и даты)` в наряд.
 
 ### 9.3. Генератор Word, HTML, печати и текста (`util/DocxGenerator.kt`)
 `object DocxGenerator` (1057 строк):
 - **A4 и стили OOXML:** страница `11906 × 16838` twips (A4), поля по `1 см` (`567` twips). Собирает валидный `.docx` ZIP-архив из 6 XML-частей: `[Content_Types].xml`, `_rels/.rels`, `word/_rels/document.xml.rels`, `word/styles.xml`, `word/settings.xml`, `word/document.xml`.
 - **Функции для Договора клиента:**
   - `generateDocxFile(context, data)` -> `Result<File>` в `cacheDir/shared_files`.
-  - `buildDocumentXml(data)` -> OOXML разметка таблицы позиций, реквизитов и подписи заказчика.
-  - `generateEstimateHtml(data)` -> HTML с `@page { size: A4 portrait; margin: 7mm 10mm }` и сжатием `@media print { height: 100%; overflow: hidden }` для гарантированного размещения на 1 листе А4 при печати/PDF.
-  - `generatePlainText(data)` -> текстовая версия сметы для мессенджеров.
+  - `buildDocumentXml(data)` -> OOXML-разметка шапки ИП, таблицы позиций, финансовых итогов и подписей заказчика.
+  - `generateEstimateHtml(data)` -> HTML с `@page { size: A4 portrait; margin: 7mm 10mm }` и правилами `@media print { height: 100%; overflow: hidden }` для гарантированного размещения на 1 листе А4 при печати/PDF.
+  - `generatePlainText(data)` -> текстовая версия сметы для отправки в мессенджеры.
   - `saveDocxToPublicDownloads(context, data)` -> сохраняет в `MediaStore.Downloads` (API 29+) или `Environment.DIRECTORY_DOWNLOADS` (API < 29).
 - **Функции для Наряда завода:**
   - `generateFactoryDocxFile(context, data)` -> `Result<File>` (`.docx`).
@@ -397,7 +478,7 @@
 
 ### 9.4. Диалог предпросмотра документов (`ui/components/EstimatePreviewDialog.kt`)
 - **`EstimatePreviewDialog`:** полноэкранный диалог с 2 вкладками:
-  1. **«Договор клиенту» (`ClientEstimateSheet`)** — бланк заказа-договора с шапкой ИП, таблицей позиций, финансовым блоком и подписями сторон. В нижней панели: `Копировать`, `Печать / PDF`, `В Загрузки (Word)`, `Отправить (.docx)`.
+  1. **«Договор клиенту» (`ClientEstimateSheet`)** — бланк заказа-договора с шапкой ИП, таблицей позиций (без лишних формул расчёта знаков), финансовым блоком и подписями сторон. В нижней панели: `Копировать`, `Печать / PDF`, `В Загрузки (Word)`, `Отправить (.docx)`.
   2. **«Наряд завода» (`FactoryOrderSheet`)** — бланк цеха/производства с таблицей ФИО/дат, гравировки/оформления (с пометкой сусального золота), всех элементов памятника (включая Приставку, Полку, 2-е части тумбы и плиты) и допусловиями.
 - Включает вспомогательные Composable: `ClientFieldRow`, `FactoryDataRow`, `FactorySectionTitle`, `SummaryRow`.
 
